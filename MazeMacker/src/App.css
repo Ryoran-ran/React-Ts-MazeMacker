@@ -34,3 +34,37 @@
   box-shadow: var(--shadow);
   overflow: auto;
 }
+
+.app__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.app__button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 700;
+  color: #fff;
+  background: #111827;
+  cursor: pointer;
+}
+
+.app__button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.app__button--secondary {
+  color: #111827;
+  background: #e5e7eb;
+}
+
+.app__status {
+  font-weight: 700;
+  color: var(--text-h);
+}

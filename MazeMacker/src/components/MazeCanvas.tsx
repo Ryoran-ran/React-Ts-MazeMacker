@@ -14,11 +14,18 @@ export type MazeCell = {
 
 export type MazeData = MazeCell[][]
 
+type CellPosition = {
+  x: number
+  y: number
+}
+
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
   wallColor?: string
   backgroundColor?: string
+  currentCell?: CellPosition | null
+  visited?: boolean[][]
 }
 
 const GRID_SIZE = 20
@@ -28,6 +35,8 @@ function MazeCanvas({
   cellSize = 24,
   wallColor = '#111827',
   backgroundColor = '#ffffff',
+  currentCell = null,
+  visited,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<p5 | null>(null)
@@ -53,14 +62,28 @@ function MazeCanvas({
 
       p.draw = () => {
         p.background(backgroundColor)
-        p.stroke(wallColor)
-        p.strokeWeight(2)
 
         for (let y = 0; y < GRID_SIZE; y += 1) {
           for (let x = 0; x < GRID_SIZE; x += 1) {
             const cell = maze[y][x]
             const drawX = x * cellSize
             const drawY = y * cellSize
+
+            if (visited?.[y]?.[x]) {
+              p.noStroke()
+              p.fill('#dbeafe')
+              p.rect(drawX, drawY, cellSize, cellSize)
+            }
+
+            if (currentCell?.x === x && currentCell?.y === y) {
+              p.noStroke()
+              p.fill('#f59e0b')
+              p.rect(drawX, drawY, cellSize, cellSize)
+            }
+
+            p.stroke(wallColor)
+            p.strokeWeight(2)
+            p.noFill()
 
             if (cell.walls.top) {
               p.line(drawX, drawY, drawX + cellSize, drawY)
@@ -85,7 +108,7 @@ function MazeCanvas({
       instanceRef.current?.remove()
       instanceRef.current = null
     }
-  }, [backgroundColor, cellSize, maze, wallColor])
+  }, [backgroundColor, cellSize, currentCell, maze, visited, wallColor])
 
   return <div ref={containerRef} />
 }
