@@ -9,6 +9,7 @@ export type MazeCellWalls = {
 }
 
 export type MazeCell = {
+  kind?: 'goal' | 'start'
   walls: MazeCellWalls
 }
 
@@ -116,6 +117,21 @@ function MazeCanvas({
               p.noStroke()
               p.fill('#f59e0b')
               p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+            }
+
+            if (cell.kind === 'start' || cell.kind === 'goal') {
+              p.noStroke()
+              p.fill(cell.kind === 'start' ? '#2563eb' : '#dc2626')
+              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+              p.fill('#ffffff')
+              p.textAlign(p.CENTER, p.CENTER)
+              p.textSize(Math.max(12, responsiveCellSize * 0.55))
+              p.textStyle(p.BOLD)
+              p.text(
+                cell.kind === 'start' ? 'S' : 'G',
+                drawX + responsiveCellSize / 2,
+                drawY + responsiveCellSize / 2,
+              )
             }
 
             p.stroke(wallColor)

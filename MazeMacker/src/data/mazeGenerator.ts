@@ -37,8 +37,14 @@ const OPPOSITE_DIRECTION: Record<Direction, Direction> = {
 }
 
 function createInitialGrid(): MazeData {
-  return Array.from({ length: GRID_SIZE }, () =>
-    Array.from({ length: GRID_SIZE }, (): MazeCell => ({
+  return Array.from({ length: GRID_SIZE }, (_, y) =>
+    Array.from({ length: GRID_SIZE }, (_, x): MazeCell => ({
+      kind:
+        y === 0 && x === 0
+          ? 'start'
+          : y === GRID_SIZE - 1 && x === GRID_SIZE - 1
+            ? 'goal'
+            : undefined,
       walls: {
         top: true,
         right: true,
@@ -69,6 +75,7 @@ function isInBounds(x: number, y: number) {
 function cloneMaze(maze: MazeData): MazeData {
   return maze.map((row) =>
     row.map((cell) => ({
+      kind: cell.kind,
       walls: { ...cell.walls },
     })),
   )
@@ -78,11 +85,6 @@ function cloneVisited(visited: boolean[][]): boolean[][] {
   return visited.map((row) => [...row])
 }
 
-function openMazeEntrances(maze: MazeData) {
-  maze[0][0].walls.left = false
-  maze[GRID_SIZE - 1][GRID_SIZE - 1].walls.right = false
-}
-
 export function createMazeGenerationState(): MazeGenerationState {
   const maze = createInitialGrid()
   const visited = Array.from({ length: GRID_SIZE }, () =>
@@ -90,7 +92,6 @@ export function createMazeGenerationState(): MazeGenerationState {
   )
 
   visited[0][0] = true
-  openMazeEntrances(maze)
 
   return {
     currentCell: { x: 0, y: 0 },
