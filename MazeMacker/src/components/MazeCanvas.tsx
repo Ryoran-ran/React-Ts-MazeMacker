@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import p5 from 'p5'
 
 export type MazeCellWalls = {
@@ -28,8 +28,6 @@ type MazeCanvasProps = {
   visited?: boolean[][]
 }
 
-const GRID_SIZE = 20
-
 function MazeCanvas({
   maze,
   cellSize = 24,
@@ -40,45 +38,84 @@ function MazeCanvas({
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<p5 | null>(null)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+
+  const rowCount = maze.length
+  const columnCount = maze[0]?.length ?? 0
 
   useEffect(() => {
     if (!containerRef.current) {
       return
     }
 
-    if (maze.length !== GRID_SIZE || maze.some((row) => row.length !== GRID_SIZE)) {
-      throw new Error(`maze must be a ${GRID_SIZE}x${GRID_SIZE} grid`)
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setContainerSize({
+        width,
+        height,
+      })
+    })
+
+    observer.observe(containerRef.current)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (rowCount === 0 || columnCount === 0) {
+      throw new Error('maze must contain at least one cell')
+    }
+
+    if (maze.some((row) => row.length !== columnCount)) {
+      throw new Error('maze rows must all have the same length')
+    }
+
+    if (!containerRef.current || containerSize.width === 0 || containerSize.height === 0) {
+      return
     }
 
     instanceRef.current?.remove()
 
     const sketch = (p: p5) => {
-      const canvasSize = GRID_SIZE * cellSize
+      const responsiveCellSize = Math.max(
+        4,
+        Math.floor(
+          Math.min(
+            cellSize,
+            containerSize.width / columnCount,
+            containerSize.height / rowCount,
+          ),
+        ),
+      )
+      const canvasWidth = responsiveCellSize * columnCount
+      const canvasHeight = responsiveCellSize * rowCount
 
       p.setup = () => {
-        p.createCanvas(canvasSize, canvasSize)
+        p.createCanvas(canvasWidth, canvasHeight)
         p.noLoop()
       }
 
       p.draw = () => {
         p.background(backgroundColor)
 
-        for (let y = 0; y < GRID_SIZE; y += 1) {
-          for (let x = 0; x < GRID_SIZE; x += 1) {
+        for (let y = 0; y < rowCount; y += 1) {
+          for (let x = 0; x < columnCount; x += 1) {
             const cell = maze[y][x]
-            const drawX = x * cellSize
-            const drawY = y * cellSize
+            const drawX = x * responsiveCellSize
+            const drawY = y * responsiveCellSize
 
             if (visited?.[y]?.[x]) {
               p.noStroke()
               p.fill('#dbeafe')
-              p.rect(drawX, drawY, cellSize, cellSize)
+              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
             }
 
             if (currentCell?.x === x && currentCell?.y === y) {
               p.noStroke()
               p.fill('#f59e0b')
-              p.rect(drawX, drawY, cellSize, cellSize)
+              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
             }
 
             p.stroke(wallColor)
@@ -86,16 +123,26 @@ function MazeCanvas({
             p.noFill()
 
             if (cell.walls.top) {
-              p.line(drawX, drawY, drawX + cellSize, drawY)
+              p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
             }
             if (cell.walls.right) {
-              p.line(drawX + cellSize, drawY, drawX + cellSize, drawY + cellSize)
+              p.line(
+                drawX + responsiveCellSize,
+                drawY,
+                drawX + responsiveCellSize,
+                drawY + responsiveCellSize,
+              )
             }
             if (cell.walls.bottom) {
-              p.line(drawX, drawY + cellSize, drawX + cellSize, drawY + cellSize)
+              p.line(
+                drawX,
+                drawY + responsiveCellSize,
+                drawX + responsiveCellSize,
+                drawY + responsiveCellSize,
+              )
             }
             if (cell.walls.left) {
-              p.line(drawX, drawY, drawX, drawY + cellSize)
+              p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
             }
           }
         }
@@ -108,9 +155,20 @@ function MazeCanvas({
       instanceRef.current?.remove()
       instanceRef.current = null
     }
-  }, [backgroundColor, cellSize, currentCell, maze, visited, wallColor])
+  }, [
+    backgroundColor,
+    cellSize,
+    columnCount,
+    containerSize.height,
+    containerSize.width,
+    currentCell,
+    maze,
+    rowCount,
+    visited,
+    wallColor,
+  ])
 
-  return <div ref={containerRef} />
+  return <div ref={containerRef} className="maze-canvas" />
 }
 
 export default MazeCanvas
