@@ -3,7 +3,8 @@
   "tabs": {
     "controls": "操作",
     "settings": "設定",
-    "edit": "編集"
+    "edit": "編集",
+    "search": "探索"
   },
   "buttons": {
     "applySize": "サイズを反映",
@@ -33,6 +34,21 @@
       "wall": "壁",
       "start": "スタート",
       "goal": "ゴール"
+    }
+  },
+  "search": {
+    "algorithmLabel": "探索方式",
+    "hint": "現在の迷路に対して探索を実行します。",
+    "options": {
+      "astar": "A*探索",
+      "bfs": "ダイクストラ法",
+      "dfs": "深さ優先探索",
+      "rightHand": "右手探索法"
+    },
+    "status": {
+      "algorithm": "search",
+      "steps": "search steps",
+      "solved": "solved"
     }
   },
   "status": {
