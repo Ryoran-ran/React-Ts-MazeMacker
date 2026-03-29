@@ -68,6 +68,7 @@ function createSearchStateMap(
     bfs: createMazeSearchState(maze, 'bfs'),
     deadEndFilling: createMazeSearchState(maze, 'deadEndFilling'),
     dfs: createMazeSearchState(maze, 'dfs'),
+    goalPruning: createMazeSearchState(maze, 'goalPruning'),
     leftHand: createMazeSearchState(maze, 'leftHand'),
     tremaux: createMazeSearchState(maze, 'tremaux'),
     rightHand: createMazeSearchState(maze, 'rightHand'),

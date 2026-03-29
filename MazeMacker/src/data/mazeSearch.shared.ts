@@ -16,6 +16,7 @@ export type MazeSearchAlgorithm =
   | 'bfs'
   | 'deadEndFilling'
   | 'dfs'
+  | 'goalPruning'
   | 'leftHand'
   | 'tremaux'
   | 'rightHand'
@@ -47,6 +48,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   { label: 'ダイクストラ法', value: 'bfs' },
   { label: 'Dead-End Filling', value: 'deadEndFilling' },
   { label: '深さ優先探索', value: 'dfs' },
+  { label: '枝刈り探索', value: 'goalPruning' },
   { label: '左手探索法', value: 'leftHand' },
   { label: 'Trémaux法', value: 'tremaux' },
   { label: '右手探索法', value: 'rightHand' },
