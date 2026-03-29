@@ -2,6 +2,7 @@ import { type MazeCell, type MazeData } from '../components/MazeCanvas'
 
 type Direction = 'top' | 'right' | 'bottom' | 'left'
 export type MazeWallDirection = Direction
+export type MazeCellKind = NonNullable<MazeCell['kind']>
 
 type CellPosition = {
   x: number
@@ -226,6 +227,34 @@ export function toggleMazeWall(
   if (direction === 'left' && x > 0) {
     maze[y][x - 1].walls.right = nextValue
   }
+
+  return {
+    ...state,
+    currentCell: null,
+    isComplete: true,
+    maze,
+    stack: [],
+    visited,
+  }
+}
+
+export function setMazeCellKind(
+  state: MazeGenerationState,
+  position: CellPosition,
+  kind: MazeCellKind,
+): MazeGenerationState {
+  const maze = cloneMaze(state.maze)
+  const visited = createVisitedGrid(state.dimensions)
+
+  for (let y = 0; y < state.dimensions.rows; y += 1) {
+    for (let x = 0; x < state.dimensions.columns; x += 1) {
+      if (maze[y][x].kind === kind) {
+        maze[y][x].kind = undefined
+      }
+    }
+  }
+
+  maze[position.y][position.x].kind = kind
 
   return {
     ...state,

@@ -95,6 +95,10 @@
   background: #111827;
 }
 
+.app__tabs--edit {
+  margin-top: -2px;
+}
+
 .app__controls {
   display: flex;
   flex-direction: column;

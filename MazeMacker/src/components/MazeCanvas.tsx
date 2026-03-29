@@ -15,6 +15,7 @@ export type MazeCell = {
 
 export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
+export type MazeEditMode = 'goal' | 'start' | 'wall'
 
 type CellPosition = {
   x: number
@@ -29,6 +30,8 @@ type MazeCanvasProps = {
   currentCell?: CellPosition | null
   visited?: boolean[][]
   editable?: boolean
+  editMode?: MazeEditMode
+  onCellSelect?: (position: CellPosition) => void
   onWallToggle?: (position: CellPosition, direction: MazeWallDirection) => void
 }
 
@@ -40,6 +43,8 @@ function MazeCanvas({
   currentCell = null,
   visited,
   editable = false,
+  editMode = 'wall',
+  onCellSelect,
   onWallToggle,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -105,7 +110,7 @@ function MazeCanvas({
       }
 
       p.mousePressed = () => {
-        if (!editable || !onWallToggle) {
+        if (!editable) {
           return
         }
 
@@ -118,6 +123,16 @@ function MazeCanvas({
 
         const cellX = Math.min(columnCount - 1, Math.floor(clickX / responsiveCellSize))
         const cellY = Math.min(rowCount - 1, Math.floor(clickY / responsiveCellSize))
+
+        if (editMode === 'start' || editMode === 'goal') {
+          onCellSelect?.({ x: cellX, y: cellY })
+          return
+        }
+
+        if (!onWallToggle) {
+          return
+        }
+
         const localX = clickX - cellX * responsiveCellSize
         const localY = clickY - cellY * responsiveCellSize
         const distances: Array<{ direction: MazeWallDirection; distance: number }> = [
@@ -221,8 +236,10 @@ function MazeCanvas({
     containerSize.height,
     containerSize.width,
     currentCell,
+    editMode,
     editable,
     maze,
+    onCellSelect,
     onWallToggle,
     rowCount,
     visited,

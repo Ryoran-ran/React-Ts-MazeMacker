@@ -18,7 +18,12 @@
     "rows": "縦"
   },
   "edit": {
-    "hint": "セルの辺をクリックして壁を切り替えます。"
+    "hint": "迷路をクリックします。",
+    "modes": {
+      "wall": "壁",
+      "start": "スタート",
+      "goal": "ゴール"
+    }
   },
   "status": {
     "dimensions": "size",

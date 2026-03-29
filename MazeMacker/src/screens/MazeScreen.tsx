@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
-import MazeCanvas, { type MazeWallDirection } from '../components/MazeCanvas'
+import MazeCanvas, {
+  type MazeEditMode,
+  type MazeWallDirection,
+} from '../components/MazeCanvas'
 import {
   DEFAULT_MAZE_DIMENSIONS,
+  type MazeCellKind,
   type MazeDimensions,
   completeMazeGeneration,
   createMazeGenerationState,
+  setMazeCellKind,
   stepMazeGeneration,
   toggleMazeWall,
 } from '../data/mazeGenerator'
@@ -30,6 +35,7 @@ function MazeScreen() {
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
+  const [editMode, setEditMode] = useState<MazeEditMode>('wall')
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -116,6 +122,16 @@ function MazeScreen() {
     setGenerationState((currentState) => toggleMazeWall(currentState, position, direction))
   }
 
+  function handleCellSelect(position: { x: number; y: number }) {
+    if (editMode === 'wall') {
+      return
+    }
+
+    const nextKind: MazeCellKind = editMode === 'start' ? 'start' : 'goal'
+    setIsPlaying(false)
+    setGenerationState((currentState) => setMazeCellKind(currentState, position, nextKind))
+  }
+
   return (
     <main className="app">
       <header className="app__topbar">
@@ -129,6 +145,8 @@ function MazeScreen() {
           currentCell={generationState.currentCell}
           cellSize={24}
           editable={activeTab === 'edit'}
+          editMode={editMode}
+          onCellSelect={handleCellSelect}
           onWallToggle={handleWallToggle}
         />
       </section>
@@ -211,6 +229,29 @@ function MazeScreen() {
           ) : activeTab === 'edit' ? (
             <>
               <p className="app__status">{mazeScreenText.edit.hint}</p>
+              <div className="app__tabs app__tabs--edit" role="tablist" aria-label="Edit modes">
+                <button
+                  className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('wall')}
+                >
+                  {mazeScreenText.edit.modes.wall}
+                </button>
+                <button
+                  className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('start')}
+                >
+                  {mazeScreenText.edit.modes.start}
+                </button>
+                <button
+                  className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('goal')}
+                >
+                  {mazeScreenText.edit.modes.goal}
+                </button>
+              </div>
               <div className="app__sizeFields">
                 <label className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
@@ -250,6 +291,13 @@ function MazeScreen() {
                 onClick={handleApplyDimensions}
               >
                 {mazeScreenText.buttons.applySize}
+              </button>
+              <button
+                className="app__button"
+                onClick={handleComplete}
+                disabled={generationState.isComplete}
+              >
+                {mazeScreenText.buttons.complete}
               </button>
               <button className="app__button app__button--secondary" onClick={handleReset}>
                 {mazeScreenText.buttons.reset}
