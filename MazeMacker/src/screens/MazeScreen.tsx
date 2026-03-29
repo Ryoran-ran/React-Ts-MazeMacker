@@ -172,7 +172,7 @@ function MazeScreen() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
     MazeSearchAlgorithm[]
-  >(['bfs', 'dfs'])
+  >(['astar'])
   const [generationState, setGenerationState] = useState(() =>
     createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging'),
   )
