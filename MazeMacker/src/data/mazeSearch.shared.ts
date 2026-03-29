@@ -17,6 +17,7 @@ export type MazeSearchAlgorithm =
   | 'deadEndFilling'
   | 'dfs'
   | 'leftHand'
+  | 'tremaux'
   | 'rightHand'
 
 export type MazeSearchState = {
@@ -47,6 +48,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   { label: 'Dead-End Filling', value: 'deadEndFilling' },
   { label: '深さ優先探索', value: 'dfs' },
   { label: '左手探索法', value: 'leftHand' },
+  { label: 'Trémaux法', value: 'tremaux' },
   { label: '右手探索法', value: 'rightHand' },
 ]
 
@@ -218,7 +220,8 @@ export function createMazeSearchState(
   const parents = createParentGrid(maze)
   const costs = createCostGrid(maze)
 
-  const isWallFollower = algorithm === 'rightHand' || algorithm === 'leftHand'
+  const isWallFollower =
+    algorithm === 'rightHand' || algorithm === 'leftHand' || algorithm === 'tremaux'
   const frontier =
     algorithm === 'deadEndFilling'
       ? maze.flatMap((row, y) =>
@@ -238,7 +241,7 @@ export function createMazeSearchState(
       : [{ cost: 0, parent: null, position: start }]
 
   openSet[start.y][start.x] = isWallFollower
-  costs[start.y][start.x] = 0
+  costs[start.y][start.x] = algorithm === 'tremaux' ? 1 : 0
 
   if (start.x === goal.x && start.y === goal.y) {
     const path = createBooleanGrid(maze)

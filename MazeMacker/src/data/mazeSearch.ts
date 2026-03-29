@@ -4,6 +4,7 @@ import { stepDeadEndFillingSearch } from './mazeSearch.deadEndFilling'
 import { stepDepthFirstSearch } from './mazeSearch.dfs'
 import { stepLeftHandSearch } from './mazeSearch.leftHand'
 import { stepRightHandSearch } from './mazeSearch.rightHand'
+import { stepTremauxSearch } from './mazeSearch.tremaux'
 import {
   MAZE_SEARCH_ALGORITHM_OPTIONS,
   completeMazeSearch as completeMazeSearchWithStep,
@@ -30,6 +31,10 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
 
   if (state.algorithm === 'deadEndFilling') {
     return stepDeadEndFillingSearch(state)
+  }
+
+  if (state.algorithm === 'tremaux') {
+    return stepTremauxSearch(state)
   }
 
   if (state.algorithm === 'leftHand') {

@@ -69,6 +69,7 @@ function createSearchStateMap(
     deadEndFilling: createMazeSearchState(maze, 'deadEndFilling'),
     dfs: createMazeSearchState(maze, 'dfs'),
     leftHand: createMazeSearchState(maze, 'leftHand'),
+    tremaux: createMazeSearchState(maze, 'tremaux'),
     rightHand: createMazeSearchState(maze, 'rightHand'),
   }
 }
