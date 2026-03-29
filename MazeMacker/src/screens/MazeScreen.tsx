@@ -334,6 +334,20 @@ function MazeScreen() {
     setPlayerBumpState(null)
   }
 
+  function handlePlayGenerate() {
+    const nextDimensions = buildDimensionsFromInputs()
+    const nextState = completeMazeGeneration(
+      createMazeGenerationState(nextDimensions, selectedAlgorithm),
+    )
+
+    setIsPlaying(false)
+    setDimensionInputs({
+      columns: String(nextDimensions.columns),
+      rows: String(nextDimensions.rows),
+    })
+    setGenerationState(nextState)
+  }
+
   function handleAlgorithmChange(nextAlgorithm: MazeAlgorithm) {
     const nextDimensions = buildDimensionsFromInputs()
 
@@ -813,6 +827,12 @@ function MazeScreen() {
                 {mazeScreenText.play.steps}: {playerState.stepCount}
                 {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
               </p>
+              <button
+                className="app__button"
+                onClick={handlePlayGenerate}
+              >
+                {mazeScreenText.play.generate}
+              </button>
               <button
                 className="app__button app__button--secondary"
                 onClick={handlePlayReset}

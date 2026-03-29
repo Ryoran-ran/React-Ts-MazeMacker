@@ -53,6 +53,7 @@
     }
   },
   "play": {
+    "generate": "迷路生成",
     "hint": "矢印キーまたは WASD で移動します。",
     "hitWallHidden": "見せない",
     "hitWallLabel": "ぶつかった壁",
