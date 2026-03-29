@@ -30,9 +30,15 @@ const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
 type SidebarTab = 'controls' | 'settings' | 'edit' | 'play' | 'search'
 type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
+type RevealedWall = {
+  direction: MazeWallDirection
+  x: number
+  y: number
+}
 type PlayerState = {
   isSolved: boolean
   position: { x: number; y: number }
+  revealedWalls: RevealedWall[]
   stepCount: number
   visited: boolean[][]
 }
@@ -82,6 +88,7 @@ function createPlayerState(maze: MazeData): PlayerState {
   return {
     isSolved: maze[position.y][position.x].kind === 'goal',
     position,
+    revealedWalls: [],
     stepCount: 0,
     visited,
   }
@@ -127,6 +134,8 @@ function MazeScreen() {
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
+  const [showHitWallsInPlay, setShowHitWallsInPlay] = useState(true)
+  const [showWallsInPlay, setShowWallsInPlay] = useState(true)
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -354,7 +363,31 @@ function MazeScreen() {
       const nextPosition = getNextPosition(generationState.maze, currentState.position, direction)
 
       if (!nextPosition) {
-        return currentState
+        if (!showHitWallsInPlay) {
+          return currentState
+        }
+
+        const revealedKey = `${currentState.position.x}:${currentState.position.y}:${direction}`
+
+        if (
+          currentState.revealedWalls.some(
+            (wall) => `${wall.x}:${wall.y}:${wall.direction}` === revealedKey,
+          )
+        ) {
+          return currentState
+        }
+
+        return {
+          ...currentState,
+          revealedWalls: [
+            ...currentState.revealedWalls,
+            {
+              direction,
+              x: currentState.position.x,
+              y: currentState.position.y,
+            },
+          ],
+        }
       }
 
       const visited = currentState.visited.map((row) => [...row])
@@ -363,6 +396,7 @@ function MazeScreen() {
       return {
         isSolved: generationState.maze[nextPosition.y][nextPosition.x].kind === 'goal',
         position: nextPosition,
+        revealedWalls: currentState.revealedWalls,
         stepCount: currentState.stepCount + 1,
         visited,
       }
@@ -445,6 +479,8 @@ function MazeScreen() {
         ) : activeTab === 'play' ? (
           <MazeCanvas
             maze={generationState.maze}
+            revealedWalls={playerState.revealedWalls}
+            showWalls={showWallsInPlay}
             visited={playerState.visited}
             currentCell={playerState.position}
             currentCellSpan={{ columns: 1, rows: 1 }}
@@ -721,6 +757,44 @@ function MazeScreen() {
             </>
           ) : activeTab === 'play' ? (
             <>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
+                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Play wall settings">
+                  <button
+                    className={`app__tab ${showWallsInPlay ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowWallsInPlay(true)}
+                  >
+                    {mazeScreenText.play.wallVisible}
+                  </button>
+                  <button
+                    className={`app__tab ${!showWallsInPlay ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowWallsInPlay(false)}
+                  >
+                    {mazeScreenText.play.wallHidden}
+                  </button>
+                </div>
+              </div>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.play.hitWallLabel}</span>
+                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Hit wall settings">
+                  <button
+                    className={`app__tab ${showHitWallsInPlay ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowHitWallsInPlay(true)}
+                  >
+                    {mazeScreenText.play.hitWallVisible}
+                  </button>
+                  <button
+                    className={`app__tab ${!showHitWallsInPlay ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowHitWallsInPlay(false)}
+                  >
+                    {mazeScreenText.play.hitWallHidden}
+                  </button>
+                </div>
+              </div>
               <p className="app__status">{mazeScreenText.play.hint}</p>
               <p className="app__status">
                 {mazeScreenText.play.steps}: {playerState.stepCount}

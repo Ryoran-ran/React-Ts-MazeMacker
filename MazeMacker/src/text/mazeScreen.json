@@ -54,8 +54,14 @@
   },
   "play": {
     "hint": "矢印キーまたは WASD で移動します。",
+    "hitWallHidden": "見せない",
+    "hitWallLabel": "ぶつかった壁",
+    "hitWallVisible": "見せる",
     "steps": "play steps",
-    "solved": "solved"
+    "solved": "solved",
+    "wallHidden": "隠す",
+    "wallLabel": "迷路の壁",
+    "wallVisible": "表示する"
   },
   "status": {
     "algorithm": "algorithm",

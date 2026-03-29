@@ -27,15 +27,23 @@ type CellSpan = {
   rows: number
 }
 
+type RevealedWall = {
+  direction: MazeWallDirection
+  x: number
+  y: number
+}
+
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
+  showWalls?: boolean
   wallColor?: string
   backgroundColor?: string
   currentCell?: CellPosition | null
   currentCellSpan?: CellSpan
   path?: boolean[][]
   openSet?: boolean[][]
+  revealedWalls?: RevealedWall[]
   visited?: boolean[][]
   editable?: boolean
   editMode?: MazeEditMode
@@ -46,12 +54,14 @@ type MazeCanvasProps = {
 function MazeCanvas({
   maze,
   cellSize = 24,
+  showWalls = true,
   wallColor = '#111827',
   backgroundColor = '#ffffff',
   currentCell = null,
   currentCellSpan = { columns: 1, rows: 1 },
   path,
   openSet,
+  revealedWalls = [],
   visited,
   editable = false,
   editMode = 'wall',
@@ -160,6 +170,14 @@ function MazeCanvas({
       p.draw = () => {
         p.background(backgroundColor)
 
+        const revealedWallSet = new Set(
+          revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
+        )
+
+        function shouldDrawWall(x: number, y: number, direction: MazeWallDirection) {
+          return showWalls || revealedWallSet.has(`${x}:${y}:${direction}`)
+        }
+
         for (let y = 0; y < rowCount; y += 1) {
           for (let x = 0; x < columnCount; x += 1) {
             const cell = maze[y][x]
@@ -217,10 +235,10 @@ function MazeCanvas({
             p.strokeWeight(2)
             p.noFill()
 
-            if (cell.walls.top) {
+            if (cell.walls.top && shouldDrawWall(x, y, 'top')) {
               p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
             }
-            if (cell.walls.right) {
+            if (cell.walls.right && shouldDrawWall(x, y, 'right')) {
               p.line(
                 drawX + responsiveCellSize,
                 drawY,
@@ -228,7 +246,7 @@ function MazeCanvas({
                 drawY + responsiveCellSize,
               )
             }
-            if (cell.walls.bottom) {
+            if (cell.walls.bottom && shouldDrawWall(x, y, 'bottom')) {
               p.line(
                 drawX,
                 drawY + responsiveCellSize,
@@ -236,7 +254,7 @@ function MazeCanvas({
                 drawY + responsiveCellSize,
               )
             }
-            if (cell.walls.left) {
+            if (cell.walls.left && shouldDrawWall(x, y, 'left')) {
               p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
             }
           }
@@ -276,7 +294,9 @@ function MazeCanvas({
     onWallToggle,
     openSet,
     path,
+    revealedWalls,
     rowCount,
+    showWalls,
     visited,
     wallColor,
   ])
