@@ -120,6 +120,38 @@ function getNextPosition(
   return position.x > 0 ? { x: position.x - 1, y: position.y } : null
 }
 
+function getOppositeDirection(direction: MazeWallDirection): MazeWallDirection {
+  if (direction === 'top') {
+    return 'bottom'
+  }
+  if (direction === 'right') {
+    return 'left'
+  }
+  if (direction === 'bottom') {
+    return 'top'
+  }
+
+  return 'right'
+}
+
+function getAdjacentPosition(
+  maze: MazeData,
+  position: { x: number; y: number },
+  direction: MazeWallDirection,
+) {
+  if (direction === 'top') {
+    return position.y > 0 ? { x: position.x, y: position.y - 1 } : null
+  }
+  if (direction === 'right') {
+    return position.x < maze[0].length - 1 ? { x: position.x + 1, y: position.y } : null
+  }
+  if (direction === 'bottom') {
+    return position.y < maze.length - 1 ? { x: position.x, y: position.y + 1 } : null
+  }
+
+  return position.x > 0 ? { x: position.x - 1, y: position.y } : null
+}
+
 function MazeScreen() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
@@ -393,26 +425,49 @@ function MazeScreen() {
           return currentState
         }
 
-        const revealedKey = `${currentState.position.x}:${currentState.position.y}:${direction}`
+        const revealedKeys = new Set(
+          currentState.revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
+        )
+        const nextRevealedWalls = [...currentState.revealedWalls]
+        const primaryWall = {
+          direction,
+          x: currentState.position.x,
+          y: currentState.position.y,
+        }
+        const primaryKey = `${primaryWall.x}:${primaryWall.y}:${primaryWall.direction}`
 
-        if (
-          currentState.revealedWalls.some(
-            (wall) => `${wall.x}:${wall.y}:${wall.direction}` === revealedKey,
-          )
-        ) {
+        if (!revealedKeys.has(primaryKey)) {
+          revealedKeys.add(primaryKey)
+          nextRevealedWalls.push(primaryWall)
+        }
+
+        const adjacentPosition = getAdjacentPosition(
+          generationState.maze,
+          currentState.position,
+          direction,
+        )
+
+        if (adjacentPosition) {
+          const oppositeWall = {
+            direction: getOppositeDirection(direction),
+            x: adjacentPosition.x,
+            y: adjacentPosition.y,
+          }
+          const oppositeKey = `${oppositeWall.x}:${oppositeWall.y}:${oppositeWall.direction}`
+
+          if (!revealedKeys.has(oppositeKey)) {
+            revealedKeys.add(oppositeKey)
+            nextRevealedWalls.push(oppositeWall)
+          }
+        }
+
+        if (nextRevealedWalls.length === currentState.revealedWalls.length) {
           return currentState
         }
 
         return {
           ...currentState,
-          revealedWalls: [
-            ...currentState.revealedWalls,
-            {
-              direction,
-              x: currentState.position.x,
-              y: currentState.position.y,
-            },
-          ],
+          revealedWalls: nextRevealedWalls,
         }
       }
 
