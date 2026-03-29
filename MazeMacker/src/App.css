@@ -262,6 +262,29 @@
   background: #e5e7eb;
 }
 
+.app__toast {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 20;
+  max-width: min(420px, calc(100vw - 40px));
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 0.16);
+}
+
+.app__toast--success {
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.app__toast--error {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+
 .app__status {
   font-weight: 700;
   color: var(--text-h);

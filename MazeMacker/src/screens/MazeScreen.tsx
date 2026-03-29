@@ -58,6 +58,10 @@ type PlayerBumpState = {
   direction: MazeWallDirection
   tick: number
 }
+type ToastState = {
+  message: string
+  tone: 'error' | 'success'
+}
 
 function normalizeDimension(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
@@ -201,7 +205,7 @@ function MazeScreen() {
   const [playWallVisibilityMode, setPlayWallVisibilityMode] =
     useState<PlayWallVisibilityMode>('all')
   const [mazeTransferText, setMazeTransferText] = useState('')
-  const [mazeTransferStatus, setMazeTransferStatus] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastState | null>(null)
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -257,6 +261,20 @@ function MazeScreen() {
       setIsSearchPlaying(false)
     }
   }, [searchStates, selectedSearchAlgorithms])
+
+  useEffect(() => {
+    if (!toast) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null)
+    }, 4000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [toast])
 
   useEffect(() => {
     setIsSearchPlaying(false)
@@ -545,7 +563,10 @@ function MazeScreen() {
     )
 
     setMazeTransferText(json)
-    setMazeTransferStatus(mazeScreenText.importExport.exported)
+    setToast({
+      message: mazeScreenText.importExport.exported,
+      tone: 'success',
+    })
   }
 
   function applyImportedMaze(mazeTransferJson: string) {
@@ -577,11 +598,16 @@ function MazeScreen() {
         maze: importedPayload.maze,
         stepCount: 0,
       })
-      setMazeTransferStatus(mazeScreenText.importExport.imported)
+      setToast({
+        message: mazeScreenText.importExport.imported,
+        tone: 'success',
+      })
     } catch (error) {
-      setMazeTransferStatus(
-        error instanceof Error ? error.message : mazeScreenText.importExport.errors.invalidJson,
-      )
+      setToast({
+        message:
+          error instanceof Error ? error.message : mazeScreenText.importExport.errors.invalidJson,
+        tone: 'error',
+      })
     }
   }
 
@@ -822,9 +848,6 @@ function MazeScreen() {
                       {mazeScreenText.importExport.label}
                     </span>
                     <div className="app__fieldHeaderActions">
-                      {mazeTransferStatus ? (
-                        <span className="app__fieldMeta">{mazeTransferStatus}</span>
-                      ) : null}
                       <button
                         className="app__button app__button--compact"
                         onClick={handleImportFromTextArea}
@@ -847,7 +870,7 @@ function MazeScreen() {
                     placeholder={mazeScreenText.importExport.placeholder}
                     onChange={(event) => {
                       setMazeTransferText(event.target.value)
-                      setMazeTransferStatus(null)
+                      setToast(null)
                     }}
                   />
                 </div>
@@ -1193,6 +1216,16 @@ function MazeScreen() {
           }
         </section>
       </aside>
+
+      {toast ? (
+        <div
+          className={`app__toast app__toast--${toast.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </main>
   )
 }
