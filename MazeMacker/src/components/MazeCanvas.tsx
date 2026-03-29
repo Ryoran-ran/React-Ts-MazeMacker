@@ -33,9 +33,15 @@ type RevealedWall = {
   y: number
 }
 
+type BumpState = {
+  direction: MazeWallDirection
+  tick: number
+}
+
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
+  bumpState?: BumpState | null
   showWalls?: boolean
   wallColor?: string
   backgroundColor?: string
@@ -54,6 +60,7 @@ type MazeCanvasProps = {
 function MazeCanvas({
   maze,
   cellSize = 24,
+  bumpState = null,
   showWalls = true,
   wallColor = '#111827',
   backgroundColor = '#ffffff',
@@ -69,11 +76,23 @@ function MazeCanvas({
   onWallToggle,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<p5 | null>(null)
+  const bumpAnimationRef = useRef<number | null>(null)
+  const bumpDirectionRef = useRef<MazeWallDirection | null>(null)
+  const bumpProgressRef = useRef(0)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
   const rowCount = maze.length
   const columnCount = maze[0]?.length ?? 0
+
+  useEffect(() => {
+    return () => {
+      if (bumpAnimationRef.current !== null) {
+        window.cancelAnimationFrame(bumpAnimationRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -104,7 +123,12 @@ function MazeCanvas({
       throw new Error('maze rows must all have the same length')
     }
 
-    if (!containerRef.current || containerSize.width === 0 || containerSize.height === 0) {
+    if (
+      !containerRef.current ||
+      !stageRef.current ||
+      containerSize.width === 0 ||
+      containerSize.height === 0
+    ) {
       return
     }
 
@@ -212,7 +236,24 @@ function MazeCanvas({
             if (isCurrentCellHighlighted) {
               p.noStroke()
               p.fill('#f59e0b')
-              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+              const horizontalBump =
+                bumpDirectionRef.current === 'left' || bumpDirectionRef.current === 'right'
+              const stretch = bumpProgressRef.current * responsiveCellSize * 0.18
+              const currentWidth = horizontalBump
+                ? responsiveCellSize - stretch
+                : responsiveCellSize + stretch * 0.75
+              const currentHeight = horizontalBump
+                ? responsiveCellSize + stretch * 0.75
+                : responsiveCellSize - stretch
+              const currentOffsetX = -(currentWidth - responsiveCellSize) / 2
+              const currentOffsetY = -(currentHeight - responsiveCellSize) / 2
+
+              p.rect(
+                drawX + currentOffsetX,
+                drawY + currentOffsetY,
+                currentWidth,
+                currentHeight,
+              )
             }
 
             if (cell.kind === 'start' || cell.kind === 'goal') {
@@ -272,7 +313,7 @@ function MazeCanvas({
       }
     }
 
-    instanceRef.current = new p5(sketch, containerRef.current)
+    instanceRef.current = new p5(sketch, stageRef.current)
 
     return () => {
       instanceRef.current?.remove()
@@ -301,11 +342,49 @@ function MazeCanvas({
     wallColor,
   ])
 
+  useEffect(() => {
+    if (!bumpState) {
+      return
+    }
+
+    if (bumpAnimationRef.current !== null) {
+      window.cancelAnimationFrame(bumpAnimationRef.current)
+    }
+
+    const durationMs = 140
+    const startTime = performance.now()
+    bumpDirectionRef.current = bumpState.direction
+
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - startTime
+      const progress = Math.min(1, elapsed / durationMs)
+      bumpProgressRef.current = Math.sin(progress * Math.PI)
+      instanceRef.current?.redraw()
+
+      if (progress < 1) {
+        bumpAnimationRef.current = window.requestAnimationFrame(animate)
+        return
+      }
+
+      bumpProgressRef.current = 0
+      bumpDirectionRef.current = null
+      instanceRef.current?.redraw()
+      bumpAnimationRef.current = null
+    }
+
+    bumpAnimationRef.current = window.requestAnimationFrame(animate)
+  }, [bumpState])
+
   return (
     <div
       ref={containerRef}
       className={`maze-canvas ${editable ? 'maze-canvas--editable' : ''}`}
-    />
+    >
+      <div
+        ref={stageRef}
+        className="maze-canvas__stage"
+      />
+    </div>
   )
 }
 

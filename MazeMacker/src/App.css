@@ -236,6 +236,13 @@
   justify-content: center;
 }
 
+.maze-canvas__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+}
+
 .maze-canvas canvas {
   display: block;
   max-width: 100%;

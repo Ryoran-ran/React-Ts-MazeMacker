@@ -42,6 +42,10 @@ type PlayerState = {
   stepCount: number
   visited: boolean[][]
 }
+type PlayerBumpState = {
+  direction: MazeWallDirection
+  tick: number
+}
 
 function normalizeDimension(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
@@ -130,6 +134,7 @@ function MazeScreen() {
   const [playerState, setPlayerState] = useState<PlayerState>(() =>
     createPlayerState(createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze),
   )
+  const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
@@ -196,6 +201,7 @@ function MazeScreen() {
     setIsSearchPlaying(false)
     setSearchStates(createSearchStateMap(generationState.maze))
     setPlayerState(createPlayerState(generationState.maze))
+    setPlayerBumpState(null)
   }, [generationState.maze])
 
   useEffect(() => {
@@ -325,6 +331,7 @@ function MazeScreen() {
 
   function handlePlayReset() {
     setPlayerState(createPlayerState(generationState.maze))
+    setPlayerBumpState(null)
   }
 
   function handleAlgorithmChange(nextAlgorithm: MazeAlgorithm) {
@@ -363,6 +370,11 @@ function MazeScreen() {
       const nextPosition = getNextPosition(generationState.maze, currentState.position, direction)
 
       if (!nextPosition) {
+        setPlayerBumpState((currentState) => ({
+          direction,
+          tick: (currentState?.tick ?? 0) + 1,
+        }))
+
         if (!showHitWallsInPlay) {
           return currentState
         }
@@ -478,6 +490,7 @@ function MazeScreen() {
           </div>
         ) : activeTab === 'play' ? (
           <MazeCanvas
+            bumpState={playerBumpState}
             maze={generationState.maze}
             revealedWalls={playerState.revealedWalls}
             showWalls={showWallsInPlay}
