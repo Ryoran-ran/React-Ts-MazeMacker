@@ -168,7 +168,16 @@ function MazeScreen() {
         <MazeCanvas
           maze={generationState.maze}
           visited={generationState.visited}
-          currentCell={generationState.currentCell}
+          currentCell={
+            generationState.isComplete || generationState.stepCount === 0
+              ? null
+              : generationState.currentCell
+          }
+          currentCellSpan={
+            selectedAlgorithm === 'stickFalling'
+              ? { columns: 2, rows: 2 }
+              : { columns: 1, rows: 1 }
+          }
           cellSize={24}
           editable={activeTab === 'edit'}
           editMode={editMode}
