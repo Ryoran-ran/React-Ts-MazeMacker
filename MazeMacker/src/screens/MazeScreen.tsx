@@ -5,6 +5,7 @@ import {
   createMazeGenerationState,
   stepMazeGeneration,
 } from '../data/mazeGenerator'
+import mazeScreenText from '../text/mazeScreen.json'
 
 const PLAY_INTERVAL_MS = 40
 
@@ -54,45 +55,9 @@ function MazeScreen() {
 
   return (
     <main className="app">
-      <div className="app__header">
-        <p className="app__eyebrow">React + TypeScript + p5.js</p>
-        <h1>Maze Renderer</h1>
-        <p className="app__description">
-          ボタンを押すたびに 1 ステップずつ迷路生成を進めます。
-        </p>
-      </div>
-
-      <section className="app__controls">
-        <button
-          className="app__button"
-          onClick={handleStep}
-          disabled={generationState.isComplete || isPlaying}
-        >
-          1フレーム進める
-        </button>
-        <button
-          className="app__button"
-          onClick={handlePlayToggle}
-          disabled={generationState.isComplete}
-        >
-          {isPlaying ? '停止' : '自動再生'}
-        </button>
-        <button
-          className="app__button"
-          onClick={handleComplete}
-          disabled={generationState.isComplete}
-        >
-          最後まで作成
-        </button>
-        <button className="app__button app__button--secondary" onClick={handleReset}>
-          リセット
-        </button>
-        <p className="app__status">
-          steps: {generationState.stepCount}
-          {isPlaying ? ' / playing' : ''}
-          {generationState.isComplete ? ' / completed' : ''}
-        </p>
-      </section>
+      <header className="app__topbar">
+        <h1>{mazeScreenText.title}</h1>
+      </header>
 
       <section className="app__panel">
         <MazeCanvas
@@ -102,6 +67,44 @@ function MazeScreen() {
           cellSize={24}
         />
       </section>
+
+      <aside className="app__sidebar">
+        <div className="app__header">
+          <p className="app__description">{mazeScreenText.description}</p>
+        </div>
+
+        <section className="app__controls">
+          <button
+            className="app__button"
+            onClick={handleStep}
+            disabled={generationState.isComplete || isPlaying}
+          >
+            {mazeScreenText.buttons.step}
+          </button>
+          <button
+            className="app__button"
+            onClick={handlePlayToggle}
+            disabled={generationState.isComplete}
+          >
+            {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleComplete}
+            disabled={generationState.isComplete}
+          >
+            {mazeScreenText.buttons.complete}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+          <p className="app__status">
+            {mazeScreenText.status.steps}: {generationState.stepCount}
+            {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+            {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+          </p>
+        </section>
+      </aside>
     </main>
   )
 }

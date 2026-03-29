@@ -1,0 +1,16 @@
+{
+  "title": "Maze Renderer",
+  "description": "ボタンを押すたびに 1 ステップずつ迷路生成を進めます。",
+  "buttons": {
+    "step": "1フレーム進める",
+    "play": "自動再生",
+    "stop": "停止",
+    "complete": "最後まで作成",
+    "reset": "リセット"
+  },
+  "status": {
+    "steps": "steps",
+    "playing": "playing",
+    "completed": "completed"
+  }
+}
