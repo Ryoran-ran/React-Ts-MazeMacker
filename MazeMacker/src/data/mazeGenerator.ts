@@ -4,6 +4,10 @@ import {
   stepStickFallingMazeGeneration,
 } from './mazeGenerator.stickFalling'
 import {
+  createWallFillingState,
+  stepWallFillingMazeGeneration,
+} from './mazeGenerator.wallFilling'
+import {
   cloneMaze,
   createVisitedGrid,
   DEFAULT_MAZE_DIMENSIONS,
@@ -30,6 +34,7 @@ export const MAZE_ALGORITHM_OPTIONS: Array<{
 }> = [
   { label: '穴掘り法', value: 'digging' },
   { label: '棒倒し法', value: 'stickFalling' },
+  { label: '壁埋め法', value: 'wallFilling' },
 ]
 
 export function createMazeGenerationState(
@@ -40,6 +45,10 @@ export function createMazeGenerationState(
     return createStickFallingState(dimensions)
   }
 
+  if (algorithm === 'wallFilling') {
+    return createWallFillingState(dimensions)
+  }
+
   return createDiggingState(dimensions)
 }
 
@@ -48,6 +57,10 @@ export function stepMazeGeneration(
 ): MazeGenerationState {
   if (state.algorithm === 'stickFalling') {
     return stepStickFallingMazeGeneration(state)
+  }
+
+  if (state.algorithm === 'wallFilling') {
+    return stepWallFillingMazeGeneration(state)
   }
 
   return stepDiggingMazeGeneration(state)
@@ -96,6 +109,7 @@ export function toggleMazeWall(
     isComplete: true,
     maze,
     pendingPillars: [],
+    pendingWalls: [],
     stack: [],
     visited,
     wallGrid: null,
@@ -126,6 +140,7 @@ export function setMazeCellKind(
     isComplete: true,
     maze,
     pendingPillars: [],
+    pendingWalls: [],
     stack: [],
     visited,
     wallGrid: null,

@@ -21,7 +21,8 @@
     "label": "生成方式",
     "options": {
       "digging": "穴掘り法",
-      "stickFalling": "棒倒し法"
+      "stickFalling": "棒倒し法",
+      "wallFilling": "壁埋め法"
     }
   },
   "edit": {

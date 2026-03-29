@@ -26,7 +26,13 @@ export type PillarEntry = {
   gridY: number
 }
 
-export type MazeAlgorithm = 'digging' | 'stickFalling'
+export type PendingWallEntry = {
+  direction: MazeWallDirection
+  from: CellPosition
+  to: CellPosition
+}
+
+export type MazeAlgorithm = 'digging' | 'stickFalling' | 'wallFilling'
 
 export type MazeGenerationState = {
   algorithm: MazeAlgorithm
@@ -35,6 +41,7 @@ export type MazeGenerationState = {
   isComplete: boolean
   maze: MazeData
   pendingPillars: PillarEntry[]
+  pendingWalls: PendingWallEntry[]
   stack: StackEntry[]
   stepCount: number
   visited: boolean[][]
@@ -93,6 +100,25 @@ export function createEmptyGrid(dimensions: MazeDimensions): MazeData {
         right: false,
         bottom: false,
         left: false,
+      },
+    })),
+  )
+}
+
+export function createBorderOnlyGrid(dimensions: MazeDimensions): MazeData {
+  return Array.from({ length: dimensions.rows }, (_, y) =>
+    Array.from({ length: dimensions.columns }, (_, x): MazeCell => ({
+      kind:
+        y === 0 && x === 0
+          ? 'start'
+          : y === dimensions.rows - 1 && x === dimensions.columns - 1
+            ? 'goal'
+            : undefined,
+      walls: {
+        top: y === 0,
+        right: x === dimensions.columns - 1,
+        bottom: y === dimensions.rows - 1,
+        left: x === 0,
       },
     })),
   )

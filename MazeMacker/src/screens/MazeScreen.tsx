@@ -167,7 +167,11 @@ function MazeScreen() {
       <section className="app__panel">
         <MazeCanvas
           maze={generationState.maze}
-          visited={generationState.visited}
+          visited={
+            generationState.algorithm === 'wallFilling'
+              ? undefined
+              : generationState.visited
+          }
           currentCell={
             generationState.isComplete || generationState.stepCount === 0
               ? null
