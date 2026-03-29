@@ -29,6 +29,7 @@ import mazeScreenText from '../text/mazeScreen.json'
 const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
 type SidebarTab = 'controls' | 'settings' | 'edit' | 'play' | 'search'
+type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
 type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
 type RevealedWall = {
@@ -37,6 +38,7 @@ type RevealedWall = {
   y: number
 }
 type PlayerState = {
+  facingDirection: MazeWallDirection
   isSolved: boolean
   position: { x: number; y: number }
   revealedWalls: RevealedWall[]
@@ -91,6 +93,7 @@ function createPlayerState(maze: MazeData): PlayerState {
   visited[position.y][position.x] = true
 
   return {
+    facingDirection: 'right',
     isSolved: maze[position.y][position.x].kind === 'goal',
     position,
     revealedWalls: [],
@@ -172,6 +175,7 @@ function MazeScreen() {
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
+  const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
   const [showWallsInPlay, setShowWallsInPlay] = useState(true)
@@ -477,6 +481,7 @@ function MazeScreen() {
       visited[nextPosition.y][nextPosition.x] = true
 
       return {
+        facingDirection: direction,
         isSolved: generationState.maze[nextPosition.y][nextPosition.x].kind === 'goal',
         position: nextPosition,
         revealedWalls: currentState.revealedWalls,
@@ -560,17 +565,22 @@ function MazeScreen() {
             })}
           </div>
         ) : activeTab === 'play' ? (
-          <MazeCanvas
-            bumpState={playerBumpState}
-            maze={generationState.maze}
-            revealedWalls={playerState.revealedWalls}
-            showVisitedWalls={playWallDiscoveryMode === 'visited'}
-            showWalls={showWallsInPlay}
-            visited={playerState.visited}
-            currentCell={playerState.position}
-            currentCellSpan={{ columns: 1, rows: 1 }}
-            cellSize={24}
-          />
+          <div className="app__playPanel">
+            <p className="app__playHint">{mazeScreenText.play.hint}</p>
+            <MazeCanvas
+              bumpState={playerBumpState}
+              currentFacingDirection={playerState.facingDirection}
+              maze={generationState.maze}
+              playHandGuideMode={playHandGuideMode}
+              revealedWalls={playerState.revealedWalls}
+              showVisitedWalls={playWallDiscoveryMode === 'visited'}
+              showWalls={showWallsInPlay}
+              visited={playerState.visited}
+              currentCell={playerState.position}
+              currentCellSpan={{ columns: 1, rows: 1 }}
+              cellSize={24}
+            />
+          </div>
         ) : (
           <MazeCanvas
             maze={generationState.maze}
@@ -891,7 +901,36 @@ function MazeScreen() {
                   </button>
                 </div>
               </div>
-              <p className="app__status">{mazeScreenText.play.hint}</p>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.play.handGuideLabel}</span>
+                <div
+                  className="app__tabs app__tabs--stacked"
+                  role="tablist"
+                  aria-label="Hand guide settings"
+                >
+                  <button
+                    className={`app__tab ${playHandGuideMode === 'right' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayHandGuideMode('right')}
+                  >
+                    {mazeScreenText.play.handGuideRight}
+                  </button>
+                  <button
+                    className={`app__tab ${playHandGuideMode === 'left' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayHandGuideMode('left')}
+                  >
+                    {mazeScreenText.play.handGuideLeft}
+                  </button>
+                  <button
+                    className={`app__tab ${playHandGuideMode === 'hidden' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayHandGuideMode('hidden')}
+                  >
+                    {mazeScreenText.play.handGuideHidden}
+                  </button>
+                </div>
+              </div>
               <p className="app__status">
                 {mazeScreenText.play.steps}: {playerState.stepCount}
                 {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}

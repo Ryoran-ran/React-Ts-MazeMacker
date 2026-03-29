@@ -54,6 +54,10 @@
   },
   "play": {
     "generate": "迷路生成",
+    "handGuideHidden": "表示しない",
+    "handGuideLabel": "手のガイド",
+    "handGuideLeft": "左手",
+    "handGuideRight": "右手",
     "hint": "矢印キーまたは WASD で移動します。",
     "discoveredWallBumpOnly": "ぶつかった壁のみ",
     "discoveredWallHidden": "表示しない",

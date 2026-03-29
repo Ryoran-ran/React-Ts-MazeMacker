@@ -16,6 +16,7 @@ export type MazeCell = {
 export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
 export type MazeEditMode = 'goal' | 'start' | 'wall'
+type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 
 type CellPosition = {
   x: number
@@ -42,8 +43,10 @@ type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
   bumpState?: BumpState | null
+  currentFacingDirection?: MazeWallDirection | null
   showVisitedWalls?: boolean
   showWalls?: boolean
+  playHandGuideMode?: PlayHandGuideMode
   wallColor?: string
   backgroundColor?: string
   currentCell?: CellPosition | null
@@ -62,8 +65,10 @@ function MazeCanvas({
   maze,
   cellSize = 24,
   bumpState = null,
+  currentFacingDirection = null,
   showVisitedWalls = false,
   showWalls = true,
+  playHandGuideMode = 'hidden',
   wallColor = '#111827',
   backgroundColor = '#ffffff',
   currentCell = null,
@@ -137,6 +142,60 @@ function MazeCanvas({
     instanceRef.current?.remove()
 
     const sketch = (p: p5) => {
+      function getHandDirection(
+        facingDirection: MazeWallDirection,
+        handGuideMode: PlayHandGuideMode,
+      ): MazeWallDirection {
+        if (handGuideMode === 'right') {
+          if (facingDirection === 'top') {
+            return 'right'
+          }
+          if (facingDirection === 'right') {
+            return 'bottom'
+          }
+          if (facingDirection === 'bottom') {
+            return 'left'
+          }
+
+          return 'top'
+        }
+
+        if (facingDirection === 'top') {
+          return 'left'
+        }
+        if (facingDirection === 'right') {
+          return 'top'
+        }
+        if (facingDirection === 'bottom') {
+          return 'right'
+        }
+
+        return 'bottom'
+      }
+
+      function getDirectionMarkerPosition(
+        drawX: number,
+        drawY: number,
+        responsiveCellSize: number,
+        direction: MazeWallDirection,
+      ) {
+        const markerInset = responsiveCellSize * 0.22
+        let markerX = drawX + responsiveCellSize / 2
+        let markerY = drawY + responsiveCellSize / 2
+
+        if (direction === 'top') {
+          markerY = drawY + markerInset
+        } else if (direction === 'right') {
+          markerX = drawX + responsiveCellSize - markerInset
+        } else if (direction === 'bottom') {
+          markerY = drawY + responsiveCellSize - markerInset
+        } else {
+          markerX = drawX + markerInset
+        }
+
+        return { markerX, markerY }
+      }
+
       const responsiveCellSize = Math.max(
         4,
         Math.floor(
@@ -282,6 +341,37 @@ function MazeCanvas({
                 currentWidth,
                 currentHeight,
               )
+
+              if (currentFacingDirection) {
+                const frontMarker = getDirectionMarkerPosition(
+                  drawX,
+                  drawY,
+                  responsiveCellSize,
+                  currentFacingDirection,
+                )
+
+                p.noStroke()
+                p.fill('#ffffff')
+                p.circle(frontMarker.markerX, frontMarker.markerY, Math.max(5, responsiveCellSize * 0.18))
+              }
+
+              if (playHandGuideMode !== 'hidden' && currentFacingDirection) {
+                const handDirection = getHandDirection(
+                  currentFacingDirection,
+                  playHandGuideMode,
+                )
+                const markerDiameter = Math.max(6, responsiveCellSize * 0.24)
+                const handMarker = getDirectionMarkerPosition(
+                  drawX,
+                  drawY,
+                  responsiveCellSize,
+                  handDirection,
+                )
+
+                p.noStroke()
+                p.fill(playHandGuideMode === 'right' ? '#dc2626' : '#2563eb')
+                p.circle(handMarker.markerX, handMarker.markerY, markerDiameter)
+              }
             }
 
             if (cell.kind === 'start' || cell.kind === 'goal') {
@@ -356,6 +446,7 @@ function MazeCanvas({
     currentCell,
     currentCellSpan.columns,
     currentCellSpan.rows,
+    currentFacingDirection,
     editMode,
     editable,
     maze,
@@ -363,6 +454,7 @@ function MazeCanvas({
     onWallToggle,
     openSet,
     path,
+    playHandGuideMode,
     revealedWalls,
     rowCount,
     showVisitedWalls,
