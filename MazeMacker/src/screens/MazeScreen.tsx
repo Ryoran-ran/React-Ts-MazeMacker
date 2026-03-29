@@ -20,6 +20,7 @@ import {
   completeMazeSearch,
   createMazeSearchState,
   stepMazeSearch,
+  type MazeSearchState,
   type MazeSearchAlgorithm,
 } from '../data/mazeSearch'
 import mazeScreenText from '../text/mazeScreen.json'
@@ -27,6 +28,7 @@ import mazeScreenText from '../text/mazeScreen.json'
 const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
 type SidebarTab = 'controls' | 'settings' | 'edit' | 'search'
+type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
 
 function normalizeDimension(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
@@ -38,18 +40,25 @@ function normalizeDimension(value: string, fallback: number) {
   return Math.max(MIN_DIMENSION, parsed)
 }
 
+function createSearchStateMap(
+  maze: MazeSearchState['maze'],
+): SearchStateMap {
+  return {
+    bfs: createMazeSearchState(maze, 'bfs'),
+    dfs: createMazeSearchState(maze, 'dfs'),
+  }
+}
+
 function MazeScreen() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
-  const [selectedSearchAlgorithm, setSelectedSearchAlgorithm] =
-    useState<MazeSearchAlgorithm>('bfs')
+  const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
+    MazeSearchAlgorithm[]
+  >(['bfs', 'dfs'])
   const [generationState, setGenerationState] = useState(() =>
     createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging'),
   )
-  const [searchState, setSearchState] = useState(() =>
-    createMazeSearchState(
-      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze,
-      'bfs',
-    ),
+  const [searchStates, setSearchStates] = useState<SearchStateMap>(() =>
+    createSearchStateMap(createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze),
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
@@ -75,18 +84,29 @@ function MazeScreen() {
   }, [generationState.isComplete, isPlaying])
 
   useEffect(() => {
-    if (!isSearchPlaying || searchState.isComplete) {
+    if (
+      !isSearchPlaying ||
+      selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete)
+    ) {
       return
     }
 
     const timerId = window.setInterval(() => {
-      setSearchState((currentState) => stepMazeSearch(currentState))
+      setSearchStates((currentStates) => {
+        const nextStates = { ...currentStates }
+
+        for (const algorithm of selectedSearchAlgorithms) {
+          nextStates[algorithm] = stepMazeSearch(nextStates[algorithm])
+        }
+
+        return nextStates
+      })
     }, PLAY_INTERVAL_MS)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [isSearchPlaying, searchState.isComplete])
+  }, [isSearchPlaying, selectedSearchAlgorithms])
 
   useEffect(() => {
     if (generationState.isComplete) {
@@ -95,15 +115,15 @@ function MazeScreen() {
   }, [generationState.isComplete])
 
   useEffect(() => {
-    if (searchState.isComplete) {
+    if (selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete)) {
       setIsSearchPlaying(false)
     }
-  }, [searchState.isComplete])
+  }, [searchStates, selectedSearchAlgorithms])
 
   useEffect(() => {
     setIsSearchPlaying(false)
-    setSearchState(createMazeSearchState(generationState.maze, selectedSearchAlgorithm))
-  }, [generationState.maze, selectedSearchAlgorithm])
+    setSearchStates(createSearchStateMap(generationState.maze))
+  }, [generationState.maze])
 
   function handleStep() {
     setGenerationState((currentState) => stepMazeGeneration(currentState))
@@ -114,7 +134,15 @@ function MazeScreen() {
   }
 
   function handleSearchStep() {
-    setSearchState((currentState) => stepMazeSearch(currentState))
+    setSearchStates((currentStates) => {
+      const nextStates = { ...currentStates }
+
+      for (const algorithm of selectedSearchAlgorithms) {
+        nextStates[algorithm] = stepMazeSearch(nextStates[algorithm])
+      }
+
+      return nextStates
+    })
   }
 
   function handleSearchPlayToggle() {
@@ -140,7 +168,15 @@ function MazeScreen() {
 
   function handleSearchComplete() {
     setIsSearchPlaying(false)
-    setSearchState((currentState) => completeMazeSearch(currentState))
+    setSearchStates((currentStates) => {
+      const nextStates = { ...currentStates }
+
+      for (const algorithm of selectedSearchAlgorithms) {
+        nextStates[algorithm] = completeMazeSearch(nextStates[algorithm])
+      }
+
+      return nextStates
+    })
   }
 
   function buildDimensionsFromInputs(): MazeDimensions {
@@ -177,7 +213,7 @@ function MazeScreen() {
 
   function handleSearchReset() {
     setIsSearchPlaying(false)
-    setSearchState(createMazeSearchState(generationState.maze, selectedSearchAlgorithm))
+    setSearchStates(createSearchStateMap(generationState.maze))
   }
 
   function handleAlgorithmChange(nextAlgorithm: MazeAlgorithm) {
@@ -188,10 +224,24 @@ function MazeScreen() {
     setGenerationState(createMazeGenerationState(nextDimensions, nextAlgorithm))
   }
 
-  function handleSearchAlgorithmChange(nextAlgorithm: MazeSearchAlgorithm) {
+  function handleSearchAlgorithmToggle(nextAlgorithm: MazeSearchAlgorithm) {
     setIsSearchPlaying(false)
-    setSelectedSearchAlgorithm(nextAlgorithm)
+    setSelectedSearchAlgorithms((currentAlgorithms) => {
+      if (currentAlgorithms.includes(nextAlgorithm)) {
+        if (currentAlgorithms.length === 1) {
+          return currentAlgorithms
+        }
+
+        return currentAlgorithms.filter((algorithm) => algorithm !== nextAlgorithm)
+      }
+
+      return [...currentAlgorithms, nextAlgorithm]
+    })
   }
+
+  const areSelectedSearchesComplete = selectedSearchAlgorithms.every(
+    (algorithm) => searchStates[algorithm].isComplete,
+  )
 
   function handleWallToggle(
     position: { x: number; y: number },
@@ -233,37 +283,63 @@ function MazeScreen() {
       </header>
 
       <section className="app__panel">
-        <MazeCanvas
-          maze={generationState.maze}
-          path={activeTab === 'search' ? searchState.path : undefined}
-          visited={
-            activeTab === 'search'
-              ? searchState.visited
-              : generationState.algorithm === 'wallFilling'
+        {activeTab === 'search' ? (
+          <div className="app__searchPanels">
+            {selectedSearchAlgorithms.map((algorithm) => {
+              const searchState = searchStates[algorithm]
+
+              return (
+                <section key={algorithm} className="app__searchPanel">
+                  <header className="app__searchPanelHeader">
+                    <h2>{mazeScreenText.search.options[algorithm]}</h2>
+                    <p>
+                      {mazeScreenText.search.status.steps}: {searchState.stepCount}
+                      {isSearchPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+                      {searchState.isSolved ? ` / ${mazeScreenText.search.status.solved}` : ''}
+                      {searchState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+                    </p>
+                  </header>
+                  <MazeCanvas
+                    maze={generationState.maze}
+                    path={searchState.path}
+                    visited={searchState.visited}
+                    currentCell={
+                      searchState.isComplete || searchState.stepCount === 0
+                        ? null
+                        : searchState.currentCell
+                    }
+                    currentCellSpan={{ columns: 1, rows: 1 }}
+                    cellSize={24}
+                  />
+                </section>
+              )
+            })}
+          </div>
+        ) : (
+          <MazeCanvas
+            maze={generationState.maze}
+            visited={
+              generationState.algorithm === 'wallFilling'
                 ? undefined
                 : generationState.visited
-          }
-          currentCell={
-            activeTab === 'search'
-              ? searchState.isComplete || searchState.stepCount === 0
-                ? null
-                : searchState.currentCell
-              : generationState.isComplete || generationState.stepCount === 0
+            }
+            currentCell={
+              generationState.isComplete || generationState.stepCount === 0
                 ? null
                 : generationState.currentCell
-          }
-          currentCellSpan={
-            activeTab !== 'search' &&
-            (selectedAlgorithm === 'stickFalling' || selectedAlgorithm === 'wallExtending')
-              ? { columns: 2, rows: 2 }
-              : { columns: 1, rows: 1 }
-          }
-          cellSize={24}
-          editable={activeTab === 'edit'}
-          editMode={editMode}
-          onCellSelect={handleCellSelect}
-          onWallToggle={handleWallToggle}
-        />
+            }
+            currentCellSpan={
+              selectedAlgorithm === 'stickFalling' || selectedAlgorithm === 'wallExtending'
+                ? { columns: 2, rows: 2 }
+                : { columns: 1, rows: 1 }
+            }
+            cellSize={24}
+            editable={activeTab === 'edit'}
+            editMode={editMode}
+            onCellSelect={handleCellSelect}
+            onWallToggle={handleWallToggle}
+          />
+        )}
       </section>
 
       <aside className="app__sidebar">
@@ -445,43 +521,50 @@ function MazeScreen() {
             </>
           ) : activeTab === 'search' ? (
             <>
-              <label className="app__field">
+              <div className="app__field">
                 <span className="app__fieldLabel">
                   {mazeScreenText.search.algorithmLabel}
                 </span>
-                <select
-                  className="app__input"
-                  value={selectedSearchAlgorithm}
-                  onChange={(event) =>
-                    handleSearchAlgorithmChange(event.target.value as MazeSearchAlgorithm)
-                  }
+                <div
+                  className="app__tabs app__tabs--search"
+                  role="tablist"
+                  aria-label="Search algorithms"
                 >
                   {MAZE_SEARCH_ALGORITHM_OPTIONS.map((algorithm) => (
-                    <option key={algorithm.value} value={algorithm.value}>
+                    <button
+                      key={algorithm.value}
+                      className={`app__tab ${
+                        selectedSearchAlgorithms.includes(algorithm.value)
+                          ? 'app__tab--active'
+                          : ''
+                      }`}
+                      type="button"
+                      onClick={() => handleSearchAlgorithmToggle(algorithm.value)}
+                    >
                       {algorithm.label}
-                    </option>
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
               <p className="app__status">{mazeScreenText.search.hint}</p>
               <button
                 className="app__button"
                 onClick={handleSearchStep}
-                disabled={searchState.isComplete || isSearchPlaying}
+                disabled={areSelectedSearchesComplete || isSearchPlaying}
               >
                 {mazeScreenText.buttons.step}
               </button>
               <button
                 className="app__button"
                 onClick={handleSearchPlayToggle}
-                disabled={searchState.isComplete}
+                disabled={areSelectedSearchesComplete}
               >
                 {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
               </button>
               <button
                 className="app__button"
                 onClick={handleSearchComplete}
-                disabled={searchState.isComplete}
+                disabled={areSelectedSearchesComplete}
               >
                 {mazeScreenText.buttons.complete}
               </button>
@@ -491,15 +574,6 @@ function MazeScreen() {
               >
                 {mazeScreenText.buttons.reset}
               </button>
-              <p className="app__status">
-                {mazeScreenText.search.status.algorithm}:{' '}
-                {mazeScreenText.search.options[selectedSearchAlgorithm]}
-                <br />
-                {mazeScreenText.search.status.steps}: {searchState.stepCount}
-                {isSearchPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
-                {searchState.isSolved ? ` / ${mazeScreenText.search.status.solved}` : ''}
-                {searchState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
-              </p>
             </>
           ) : (
             <>
