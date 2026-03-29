@@ -1,0 +1,25 @@
+{
+  "title": "Maze Renderer",
+  "tabs": {
+    "controls": "操作",
+    "settings": "設定"
+  },
+  "buttons": {
+    "applySize": "サイズを反映",
+    "step": "1フレーム進める",
+    "play": "自動再生",
+    "stop": "停止",
+    "complete": "最後まで作成",
+    "reset": "リセット"
+  },
+  "size": {
+    "columns": "横",
+    "rows": "縦"
+  },
+  "status": {
+    "dimensions": "size",
+    "steps": "steps",
+    "playing": "playing",
+    "completed": "completed"
+  }
+}
