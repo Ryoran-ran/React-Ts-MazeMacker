@@ -634,24 +634,131 @@ function MazeScreen() {
     }
   }
 
+  function renderTopActions() {
+    if (activeTab === 'edit') {
+      return (
+        <>
+          <button className="app__button" onClick={handleExportMaze}>
+            {mazeScreenText.importExport.export}
+          </button>
+          <button className="app__button" onClick={handleImportFromFile}>
+            {mazeScreenText.importExport.import}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleApplyDimensions}>
+            {mazeScreenText.buttons.applySize}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleComplete}
+            disabled={generationState.isComplete}
+          >
+            {mazeScreenText.buttons.complete}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
+    if (activeTab === 'search') {
+      return (
+        <>
+          <button
+            className="app__button"
+            onClick={handleSearchStep}
+            disabled={areSelectedSearchesComplete || isSearchPlaying}
+          >
+            {mazeScreenText.buttons.step}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleSearchPlayToggle}
+            disabled={areSelectedSearchesComplete}
+          >
+            {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleSearchComplete}
+            disabled={areSelectedSearchesComplete}
+          >
+            {mazeScreenText.buttons.complete}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleSearchReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
+    if (activeTab === 'play') {
+      return (
+        <>
+          <button className="app__button" onClick={handlePlayGenerate}>
+            {mazeScreenText.play.generate}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handlePlayReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <button className="app__button app__button--secondary" onClick={handleApplyDimensions}>
+          {mazeScreenText.buttons.applySize}
+        </button>
+        <button
+          className="app__button"
+          onClick={handleStep}
+          disabled={generationState.isComplete || isPlaying}
+        >
+          {mazeScreenText.buttons.step}
+        </button>
+        <button
+          className="app__button"
+          onClick={handlePlayToggle}
+          disabled={generationState.isComplete}
+        >
+          {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+        </button>
+        <button
+          className="app__button"
+          onClick={handleComplete}
+          disabled={generationState.isComplete}
+        >
+          {mazeScreenText.buttons.complete}
+        </button>
+        <button className="app__button app__button--secondary" onClick={handleReset}>
+          {mazeScreenText.buttons.reset}
+        </button>
+      </>
+    )
+  }
+
   return (
     <main className="app">
       <header className="app__topbar">
         <h1>{mazeScreenText.title}</h1>
-        <div className="app__statusRow" aria-label="Maze status">
-          <span className="app__statusItem">
-            {mazeScreenText.status.algorithm}:{' '}
-            {mazeScreenText.algorithm.options[selectedAlgorithm]}
-          </span>
-          <span className="app__statusItem">
-            {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
-            {generationState.dimensions.rows}
-          </span>
-          <span className="app__statusItem">
-            {mazeScreenText.status.steps}: {generationState.stepCount}
-            {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
-            {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
-          </span>
+        <div className="app__topbarSide">
+          <div className="app__statusRow" aria-label="Maze status">
+            <span className="app__statusItem">
+              {mazeScreenText.status.algorithm}:{' '}
+              {mazeScreenText.algorithm.options[selectedAlgorithm]}
+            </span>
+            <span className="app__statusItem">
+              {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
+              {generationState.dimensions.rows}
+            </span>
+            <span className="app__statusItem">
+              {mazeScreenText.status.steps}: {generationState.stepCount}
+              {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+              {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+            </span>
+          </div>
+          <div className="app__topbarActions">{renderTopActions()}</div>
         </div>
       </header>
 
@@ -875,36 +982,6 @@ function MazeScreen() {
                   />
                 </div>
               </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button"
-                  onClick={handleExportMaze}
-                >
-                  {mazeScreenText.importExport.export}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleImportFromFile}
-                >
-                  {mazeScreenText.importExport.import}
-                </button>
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handleApplyDimensions}
-                >
-                  {mazeScreenText.buttons.applySize}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleComplete}
-                  disabled={generationState.isComplete}
-                >
-                  {mazeScreenText.buttons.complete}
-                </button>
-                <button className="app__button app__button--secondary" onClick={handleReset}>
-                  {mazeScreenText.buttons.reset}
-                </button>
-              </div>
             </>
           ) : activeTab === 'search' ? (
             <>
@@ -960,35 +1037,6 @@ function MazeScreen() {
                   </div>
                 </div>
                 <p className="app__status">{mazeScreenText.search.hint}</p>
-              </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button"
-                  onClick={handleSearchStep}
-                  disabled={areSelectedSearchesComplete || isSearchPlaying}
-                >
-                  {mazeScreenText.buttons.step}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleSearchPlayToggle}
-                  disabled={areSelectedSearchesComplete}
-                >
-                  {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleSearchComplete}
-                  disabled={areSelectedSearchesComplete}
-                >
-                  {mazeScreenText.buttons.complete}
-                </button>
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handleSearchReset}
-                >
-                  {mazeScreenText.buttons.reset}
-                </button>
               </div>
             </>
           ) : activeTab === 'play' ? (
@@ -1081,20 +1129,6 @@ function MazeScreen() {
                   </div>
                 </div>
               </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button"
-                  onClick={handlePlayGenerate}
-                >
-                  {mazeScreenText.play.generate}
-                </button>
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handlePlayReset}
-                >
-                  {mazeScreenText.buttons.reset}
-                </button>
-              </div>
             </>
           ) : activeTab === 'controls' ? (
             <>
@@ -1178,38 +1212,6 @@ function MazeScreen() {
                     />
                   </label>
                 </div>
-              </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handleApplyDimensions}
-                >
-                  {mazeScreenText.buttons.applySize}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleStep}
-                  disabled={generationState.isComplete || isPlaying}
-                >
-                  {mazeScreenText.buttons.step}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handlePlayToggle}
-                  disabled={generationState.isComplete}
-                >
-                  {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleComplete}
-                  disabled={generationState.isComplete}
-                >
-                  {mazeScreenText.buttons.complete}
-                </button>
-                <button className="app__button app__button--secondary" onClick={handleReset}>
-                  {mazeScreenText.buttons.reset}
-                </button>
               </div>
             </>
           ) : null
