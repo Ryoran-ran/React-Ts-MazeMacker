@@ -148,6 +148,7 @@ function MazeCanvas({
     }
 
     instanceRef.current?.remove()
+    stageRef.current.replaceChildren()
 
     const sketch = (p: p5) => {
       function getHandDirection(
@@ -502,6 +503,7 @@ function MazeCanvas({
     return () => {
       instanceRef.current?.remove()
       instanceRef.current = null
+      stageRef.current?.replaceChildren()
     }
   }, [
     backgroundColor,

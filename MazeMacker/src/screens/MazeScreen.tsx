@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import MazeCanvas, {
   type MazeEditMode,
   type MazeData,
@@ -24,6 +24,11 @@ import {
   type MazeSearchState,
   type MazeSearchAlgorithm,
 } from '../data/mazeSearch'
+import {
+  buildMazeTransferPayload,
+  downloadMazeTransferPayload,
+} from '../data/mazeTransfer.export'
+import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
@@ -52,6 +57,10 @@ type PlayerState = {
 type PlayerBumpState = {
   direction: MazeWallDirection
   tick: number
+}
+type ToastState = {
+  message: string
+  tone: 'error' | 'success'
 }
 
 function normalizeDimension(value: string, fallback: number) {
@@ -169,6 +178,7 @@ function getAdjacentPosition(
 }
 
 function MazeScreen() {
+  const importFileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
     MazeSearchAlgorithm[]
@@ -194,6 +204,8 @@ function MazeScreen() {
     useState<PlayWallDiscoveryMode>('visited')
   const [playWallVisibilityMode, setPlayWallVisibilityMode] =
     useState<PlayWallVisibilityMode>('all')
+  const [mazeTransferText, setMazeTransferText] = useState('')
+  const [toast, setToast] = useState<ToastState | null>(null)
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -249,6 +261,20 @@ function MazeScreen() {
       setIsSearchPlaying(false)
     }
   }, [searchStates, selectedSearchAlgorithms])
+
+  useEffect(() => {
+    if (!toast) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null)
+    }, 4000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [toast])
 
   useEffect(() => {
     setIsSearchPlaying(false)
@@ -524,24 +550,215 @@ function MazeScreen() {
     setGenerationState((currentState) => setMazeCellKind(currentState, position, nextKind))
   }
 
+  function handleExportMaze() {
+    const payload = buildMazeTransferPayload(
+      generationState.maze,
+      generationState.dimensions,
+      selectedAlgorithm,
+    )
+    const json = downloadMazeTransferPayload(
+      payload,
+      generationState.dimensions,
+      selectedAlgorithm,
+    )
+
+    setMazeTransferText(json)
+    setToast({
+      message: mazeScreenText.importExport.exported,
+      tone: 'success',
+    })
+  }
+
+  function applyImportedMaze(mazeTransferJson: string) {
+    try {
+      const importedPayload = parseMazeTransferPayload(mazeTransferJson, {
+        dimensionMismatch: mazeScreenText.importExport.errors.dimensionMismatch,
+        invalidJson: mazeScreenText.importExport.errors.invalidJson,
+        invalidMarkers: mazeScreenText.importExport.errors.invalidMarkers,
+        invalidMaze: mazeScreenText.importExport.errors.invalidMaze,
+      })
+      const nextAlgorithm = importedPayload.algorithm ?? selectedAlgorithm
+      const nextDimensions = importedPayload.dimensions ?? {
+        columns: importedPayload.maze[0].length,
+        rows: importedPayload.maze.length,
+      }
+
+      setIsPlaying(false)
+      setIsSearchPlaying(false)
+      setSelectedAlgorithm(nextAlgorithm)
+      setMazeTransferText(mazeTransferJson)
+      setDimensionInputs({
+        columns: String(nextDimensions.columns),
+        rows: String(nextDimensions.rows),
+      })
+      setGenerationState({
+        ...createMazeGenerationState(nextDimensions, nextAlgorithm),
+        currentCell: null,
+        isComplete: true,
+        maze: importedPayload.maze,
+        stepCount: 0,
+      })
+      setToast({
+        message: mazeScreenText.importExport.imported,
+        tone: 'success',
+      })
+    } catch (error) {
+      setToast({
+        message:
+          error instanceof Error ? error.message : mazeScreenText.importExport.errors.invalidJson,
+        tone: 'error',
+      })
+    }
+  }
+
+  function handleImportFromTextArea() {
+    applyImportedMaze(mazeTransferText)
+  }
+
+  function handleImportFromFile() {
+    importFileInputRef.current?.click()
+  }
+
+  async function handleImportFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const mazeTransferJson = await file.text()
+      applyImportedMaze(mazeTransferJson)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  function renderTopActions() {
+    if (activeTab === 'edit') {
+      return (
+        <>
+          <button className="app__button" onClick={handleExportMaze}>
+            {mazeScreenText.importExport.export}
+          </button>
+          <button className="app__button" onClick={handleImportFromFile}>
+            {mazeScreenText.importExport.import}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleApplyDimensions}>
+            {mazeScreenText.buttons.applySize}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleComplete}
+            disabled={generationState.isComplete}
+          >
+            {mazeScreenText.buttons.complete}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
+    if (activeTab === 'search') {
+      return (
+        <>
+          <button
+            className="app__button"
+            onClick={handleSearchStep}
+            disabled={areSelectedSearchesComplete || isSearchPlaying}
+          >
+            {mazeScreenText.buttons.step}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleSearchPlayToggle}
+            disabled={areSelectedSearchesComplete}
+          >
+            {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleSearchComplete}
+            disabled={areSelectedSearchesComplete}
+          >
+            {mazeScreenText.buttons.complete}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleSearchReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
+    if (activeTab === 'play') {
+      return (
+        <>
+          <button className="app__button" onClick={handlePlayGenerate}>
+            {mazeScreenText.play.generate}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handlePlayReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <button className="app__button app__button--secondary" onClick={handleApplyDimensions}>
+          {mazeScreenText.buttons.applySize}
+        </button>
+        <button
+          className="app__button"
+          onClick={handleStep}
+          disabled={generationState.isComplete || isPlaying}
+        >
+          {mazeScreenText.buttons.step}
+        </button>
+        <button
+          className="app__button"
+          onClick={handlePlayToggle}
+          disabled={generationState.isComplete}
+        >
+          {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+        </button>
+        <button
+          className="app__button"
+          onClick={handleComplete}
+          disabled={generationState.isComplete}
+        >
+          {mazeScreenText.buttons.complete}
+        </button>
+        <button className="app__button app__button--secondary" onClick={handleReset}>
+          {mazeScreenText.buttons.reset}
+        </button>
+      </>
+    )
+  }
+
   return (
     <main className="app">
       <header className="app__topbar">
         <h1>{mazeScreenText.title}</h1>
-        <div className="app__statusRow" aria-label="Maze status">
-          <span className="app__statusItem">
-            {mazeScreenText.status.algorithm}:{' '}
-            {mazeScreenText.algorithm.options[selectedAlgorithm]}
-          </span>
-          <span className="app__statusItem">
-            {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
-            {generationState.dimensions.rows}
-          </span>
-          <span className="app__statusItem">
-            {mazeScreenText.status.steps}: {generationState.stepCount}
-            {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
-            {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
-          </span>
+        <div className="app__topbarSide">
+          <div className="app__statusRow" aria-label="Maze status">
+            <span className="app__statusItem">
+              {mazeScreenText.status.algorithm}:{' '}
+              {mazeScreenText.algorithm.options[selectedAlgorithm]}
+            </span>
+            <span className="app__statusItem">
+              {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
+              {generationState.dimensions.rows}
+            </span>
+            <span className="app__statusItem">
+              {mazeScreenText.status.steps}: {generationState.stepCount}
+              {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+              {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+            </span>
+          </div>
+          <div className="app__topbarActions">{renderTopActions()}</div>
         </div>
       </header>
 
@@ -732,24 +949,38 @@ function MazeScreen() {
                     />
                   </label>
                 </div>
-              </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handleApplyDimensions}
-                >
-                  {mazeScreenText.buttons.applySize}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleComplete}
-                  disabled={generationState.isComplete}
-                >
-                  {mazeScreenText.buttons.complete}
-                </button>
-                <button className="app__button app__button--secondary" onClick={handleReset}>
-                  {mazeScreenText.buttons.reset}
-                </button>
+                <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">
+                      {mazeScreenText.importExport.label}
+                    </span>
+                    <div className="app__fieldHeaderActions">
+                      <button
+                        className="app__button app__button--compact"
+                        onClick={handleImportFromTextArea}
+                        disabled={mazeTransferText.trim().length === 0}
+                      >
+                        {mazeScreenText.importExport.importText}
+                      </button>
+                      <input
+                        ref={importFileInputRef}
+                        className="app__srOnly"
+                        type="file"
+                        accept="application/json,.json"
+                        onChange={handleImportFileChange}
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    className="app__textarea"
+                    value={mazeTransferText}
+                    placeholder={mazeScreenText.importExport.placeholder}
+                    onChange={(event) => {
+                      setMazeTransferText(event.target.value)
+                      setToast(null)
+                    }}
+                  />
+                </div>
               </div>
             </>
           ) : activeTab === 'search' ? (
@@ -805,36 +1036,6 @@ function MazeScreen() {
                     ))}
                   </div>
                 </div>
-                <p className="app__status">{mazeScreenText.search.hint}</p>
-              </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button"
-                  onClick={handleSearchStep}
-                  disabled={areSelectedSearchesComplete || isSearchPlaying}
-                >
-                  {mazeScreenText.buttons.step}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleSearchPlayToggle}
-                  disabled={areSelectedSearchesComplete}
-                >
-                  {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleSearchComplete}
-                  disabled={areSelectedSearchesComplete}
-                >
-                  {mazeScreenText.buttons.complete}
-                </button>
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handleSearchReset}
-                >
-                  {mazeScreenText.buttons.reset}
-                </button>
               </div>
             </>
           ) : activeTab === 'play' ? (
@@ -842,7 +1043,7 @@ function MazeScreen() {
               <div className="app__controlsBody">
                 <div className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
-                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Play wall settings">
+                <div className="app__tabs app__tabs--playWalls" role="tablist" aria-label="Play wall settings">
                   <button
                     className={`app__tab ${playWallVisibilityMode === 'all' ? 'app__tab--active' : ''}`}
                     type="button"
@@ -926,20 +1127,6 @@ function MazeScreen() {
                     </button>
                   </div>
                 </div>
-              </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button"
-                  onClick={handlePlayGenerate}
-                >
-                  {mazeScreenText.play.generate}
-                </button>
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handlePlayReset}
-                >
-                  {mazeScreenText.buttons.reset}
-                </button>
               </div>
             </>
           ) : activeTab === 'controls' ? (
@@ -1025,43 +1212,21 @@ function MazeScreen() {
                   </label>
                 </div>
               </div>
-              <div className="app__controlsActions">
-                <button
-                  className="app__button app__button--secondary"
-                  onClick={handleApplyDimensions}
-                >
-                  {mazeScreenText.buttons.applySize}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleStep}
-                  disabled={generationState.isComplete || isPlaying}
-                >
-                  {mazeScreenText.buttons.step}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handlePlayToggle}
-                  disabled={generationState.isComplete}
-                >
-                  {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
-                </button>
-                <button
-                  className="app__button"
-                  onClick={handleComplete}
-                  disabled={generationState.isComplete}
-                >
-                  {mazeScreenText.buttons.complete}
-                </button>
-                <button className="app__button app__button--secondary" onClick={handleReset}>
-                  {mazeScreenText.buttons.reset}
-                </button>
-              </div>
             </>
           ) : null
           }
         </section>
       </aside>
+
+      {toast ? (
+        <div
+          className={`app__toast app__toast--${toast.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </main>
   )
 }
