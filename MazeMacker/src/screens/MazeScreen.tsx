@@ -147,6 +147,21 @@ function MazeScreen() {
     <main className="app">
       <header className="app__topbar">
         <h1>{mazeScreenText.title}</h1>
+        <div className="app__statusRow" aria-label="Maze status">
+          <span className="app__statusItem">
+            {mazeScreenText.status.algorithm}:{' '}
+            {mazeScreenText.algorithm.options[selectedAlgorithm]}
+          </span>
+          <span className="app__statusItem">
+            {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
+            {generationState.dimensions.rows}
+          </span>
+          <span className="app__statusItem">
+            {mazeScreenText.status.steps}: {generationState.stepCount}
+            {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+            {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+          </span>
+        </div>
       </header>
 
       <section className="app__panel">
@@ -358,16 +373,6 @@ function MazeScreen() {
               </button>
             </>
           )}
-          <p className="app__status">
-            {mazeScreenText.status.algorithm}: {mazeScreenText.algorithm.options[selectedAlgorithm]}
-            <br />
-            {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
-            {generationState.dimensions.rows}
-            <br />
-            {mazeScreenText.status.steps}: {generationState.stepCount}
-            {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
-            {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
-          </p>
         </section>
       </aside>
     </main>

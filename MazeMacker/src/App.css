@@ -11,13 +11,16 @@
 
 .app__topbar {
   grid-column: 1 / -1;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   padding: 8px 4px 0;
   text-align: left;
 }
 
 .app__topbar h1 {
+  margin: 0;
   font-size: clamp(1.375rem, 2.5vw, 2.25rem);
   line-height: 0.95;
   letter-spacing: -0.06em;
@@ -164,6 +167,20 @@
   text-align: left;
 }
 
+.app__statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  font-weight: 700;
+  color: var(--text-h);
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.app__statusItem {
+  white-space: nowrap;
+}
+
 .maze-canvas {
   width: 100%;
   height: 100%;
@@ -192,6 +209,8 @@
   }
 
   .app__topbar {
+    flex-direction: column;
+    align-items: center;
     padding: 0;
     text-align: center;
   }
@@ -203,6 +222,11 @@
 
   .app__panel {
     padding: 12px;
+  }
+
+  .app__statusRow {
+    justify-content: center;
+    text-align: center;
   }
 
   .app__sidebar {
