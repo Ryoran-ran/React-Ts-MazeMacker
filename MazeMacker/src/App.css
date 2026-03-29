@@ -116,14 +116,28 @@
 }
 
 .app__controls {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
+  min-height: 0;
+}
+
+.app__controlsBody {
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app__controlsActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: var(--bg);
 }
 
 .app__sizeFields {
@@ -158,7 +172,7 @@
 .app__button {
   border: 0;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   font: inherit;
   font-weight: 700;
   color: #fff;
