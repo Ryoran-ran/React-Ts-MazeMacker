@@ -18,7 +18,15 @@ type StackEntry = CellPosition & {
   directions: Direction[]
 }
 
+export type MazeAlgorithm = 'digging'
+
+export const MAZE_ALGORITHM_OPTIONS: Array<{
+  label: string
+  value: MazeAlgorithm
+}> = [{ label: '穴掘り法', value: 'digging' }]
+
 export type MazeGenerationState = {
+  algorithm: MazeAlgorithm
   currentCell: CellPosition | null
   dimensions: MazeDimensions
   isComplete: boolean
@@ -104,6 +112,7 @@ function createVisitedGrid(dimensions: MazeDimensions): boolean[][] {
 
 export function createMazeGenerationState(
   dimensions: MazeDimensions = DEFAULT_MAZE_DIMENSIONS,
+  algorithm: MazeAlgorithm = 'digging',
 ): MazeGenerationState {
   const maze = createInitialGrid(dimensions)
   const visited = createVisitedGrid(dimensions)
@@ -111,6 +120,7 @@ export function createMazeGenerationState(
   visited[0][0] = true
 
   return {
+    algorithm,
     currentCell: { x: 0, y: 0 },
     dimensions,
     isComplete: false,
@@ -124,6 +134,10 @@ export function createMazeGenerationState(
 export function stepMazeGeneration(
   state: MazeGenerationState,
 ): MazeGenerationState {
+  if (state.algorithm !== 'digging') {
+    return state
+  }
+
   if (state.isComplete) {
     return state
   }
@@ -158,6 +172,7 @@ export function stepMazeGeneration(
       })
 
       return {
+        algorithm: state.algorithm,
         currentCell: { x: nextX, y: nextY },
         dimensions: state.dimensions,
         isComplete: false,
@@ -171,6 +186,7 @@ export function stepMazeGeneration(
     stack.pop()
 
     return {
+      algorithm: state.algorithm,
       currentCell:
         stack.length > 0
           ? { x: stack[stack.length - 1].x, y: stack[stack.length - 1].y }

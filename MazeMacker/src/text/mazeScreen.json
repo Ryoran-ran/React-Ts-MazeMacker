@@ -17,6 +17,12 @@
     "columns": "横",
     "rows": "縦"
   },
+  "algorithm": {
+    "label": "生成方式",
+    "options": {
+      "digging": "穴掘り法"
+    }
+  },
   "edit": {
     "hint": "迷路をクリックします。",
     "modes": {
@@ -26,6 +32,7 @@
     }
   },
   "status": {
+    "algorithm": "algorithm",
     "dimensions": "size",
     "steps": "steps",
     "playing": "playing",

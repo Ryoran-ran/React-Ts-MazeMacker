@@ -5,6 +5,8 @@ import MazeCanvas, {
 } from '../components/MazeCanvas'
 import {
   DEFAULT_MAZE_DIMENSIONS,
+  MAZE_ALGORITHM_OPTIONS,
+  type MazeAlgorithm,
   type MazeCellKind,
   type MazeDimensions,
   completeMazeGeneration,
@@ -30,8 +32,9 @@ function normalizeDimension(value: string, fallback: number) {
 }
 
 function MazeScreen() {
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [generationState, setGenerationState] = useState(() =>
-    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS),
+    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging'),
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
@@ -100,7 +103,7 @@ function MazeScreen() {
       columns: String(nextDimensions.columns),
       rows: String(nextDimensions.rows),
     })
-    setGenerationState(createMazeGenerationState(nextDimensions))
+    setGenerationState(createMazeGenerationState(nextDimensions, selectedAlgorithm))
   }
 
   function handleReset() {
@@ -111,7 +114,15 @@ function MazeScreen() {
       columns: String(nextDimensions.columns),
       rows: String(nextDimensions.rows),
     })
-    setGenerationState(createMazeGenerationState(nextDimensions))
+    setGenerationState(createMazeGenerationState(nextDimensions, selectedAlgorithm))
+  }
+
+  function handleAlgorithmChange(nextAlgorithm: MazeAlgorithm) {
+    const nextDimensions = buildDimensionsFromInputs()
+
+    setIsPlaying(false)
+    setSelectedAlgorithm(nextAlgorithm)
+    setGenerationState(createMazeGenerationState(nextDimensions, nextAlgorithm))
   }
 
   function handleWallToggle(
@@ -185,6 +196,22 @@ function MazeScreen() {
         <section className="app__controls">
           {activeTab === 'settings' ? (
             <>
+              <label className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.algorithm.label}</span>
+                <select
+                  className="app__input"
+                  value={selectedAlgorithm}
+                  onChange={(event) =>
+                    handleAlgorithmChange(event.target.value as MazeAlgorithm)
+                  }
+                >
+                  {MAZE_ALGORITHM_OPTIONS.map((algorithm) => (
+                    <option key={algorithm.value} value={algorithm.value}>
+                      {algorithm.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="app__sizeFields">
                 <label className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
@@ -332,6 +359,8 @@ function MazeScreen() {
             </>
           )}
           <p className="app__status">
+            {mazeScreenText.status.algorithm}: {mazeScreenText.algorithm.options[selectedAlgorithm]}
+            <br />
             {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
             {generationState.dimensions.rows}
             <br />
