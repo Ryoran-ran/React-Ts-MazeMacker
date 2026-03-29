@@ -3,7 +3,9 @@ import {
   cloneVisited,
   createBorderOnlyGrid,
   createVisitedGrid,
+  normalizeMazeSeed,
   OPPOSITE_DIRECTION,
+  shuffleEntries,
   shuffleDirections,
   type CellPosition,
   type MazeDimensions,
@@ -11,7 +13,7 @@ import {
   type PendingWallEntry,
 } from './mazeGenerator.shared'
 
-function createPendingWalls(dimensions: MazeDimensions): PendingWallEntry[] {
+function createPendingWalls(dimensions: MazeDimensions, rngState: number | null) {
   const pendingWalls: PendingWallEntry[] = []
 
   for (let y = 0; y < dimensions.rows; y += 1) {
@@ -34,17 +36,18 @@ function createPendingWalls(dimensions: MazeDimensions): PendingWallEntry[] {
     }
   }
 
-  return pendingWalls.sort(() => Math.random() - 0.5)
+  return shuffleEntries(pendingWalls, rngState)
 }
 
 function hasAlternatePath(
   state: MazeGenerationState,
   wall: PendingWallEntry,
-): boolean {
+): { hasPath: boolean; rngState: number | null } {
   const queue: CellPosition[] = [{ ...wall.from }]
   const seen = Array.from({ length: state.dimensions.rows }, () =>
     Array.from({ length: state.dimensions.columns }, () => false),
   )
+  let rngState = state.rngState
 
   seen[wall.from.y][wall.from.x] = true
 
@@ -52,10 +55,12 @@ function hasAlternatePath(
     const current = queue.shift() as CellPosition
 
     if (current.x === wall.to.x && current.y === wall.to.y) {
-      return true
+        return { hasPath: true, rngState }
     }
 
-    const directions = shuffleDirections()
+    const shuffledDirections = shuffleDirections(rngState)
+    const directions = shuffledDirections.directions
+    rngState = shuffledDirections.rngState
 
     for (const direction of directions) {
       if (state.maze[current.y][current.x].walls[direction]) {
@@ -104,12 +109,16 @@ function hasAlternatePath(
     }
   }
 
-  return false
+  return { hasPath: false, rngState }
 }
 
 export function createWallFillingState(
   dimensions: MazeDimensions,
+  seed: number | null,
 ): MazeGenerationState {
+  const normalizedSeed = seed === null ? null : normalizeMazeSeed(seed)
+  const shuffledWalls = createPendingWalls(dimensions, normalizedSeed)
+
   return {
     algorithm: 'wallFilling',
     currentCell: null,
@@ -118,7 +127,9 @@ export function createWallFillingState(
     extensionSegments: [],
     maze: createBorderOnlyGrid(dimensions),
     pendingPillars: [],
-    pendingWalls: createPendingWalls(dimensions),
+    pendingWalls: shuffledWalls.entries,
+    rngState: shuffledWalls.rngState,
+    seed: normalizedSeed,
     stack: [],
     stepCount: 0,
     visited: createVisitedGrid(dimensions),
@@ -136,6 +147,7 @@ export function stepWallFillingMazeGeneration(
   const pendingWalls = state.pendingWalls.slice()
   const maze = cloneMaze(state.maze)
   const visited = cloneVisited(state.visited)
+  let rngState = state.rngState
 
   while (pendingWalls.length > 0) {
     const nextWall = pendingWalls.shift()
@@ -144,7 +156,10 @@ export function stepWallFillingMazeGeneration(
       break
     }
 
-    if (!hasAlternatePath({ ...state, maze }, nextWall)) {
+    const alternatePathResult = hasAlternatePath({ ...state, maze, rngState }, nextWall)
+    rngState = alternatePathResult.rngState
+
+    if (!alternatePathResult.hasPath) {
       continue
     }
 
@@ -162,6 +177,8 @@ export function stepWallFillingMazeGeneration(
       maze,
       pendingPillars: [],
       pendingWalls,
+      rngState,
+      seed: state.seed,
       stack: [],
       stepCount: state.stepCount + 1,
       visited,
@@ -175,6 +192,7 @@ export function stepWallFillingMazeGeneration(
     isComplete: true,
     maze,
     pendingWalls: [],
+    rngState,
     visited,
   }
 }

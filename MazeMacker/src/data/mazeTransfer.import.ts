@@ -1,4 +1,8 @@
-import { MAZE_ALGORITHM_OPTIONS, type MazeAlgorithm } from './mazeGenerator'
+import {
+  MAZE_ALGORITHM_OPTIONS,
+  normalizeMazeSeed,
+  type MazeAlgorithm,
+} from './mazeGenerator'
 import { type MazeData } from '../components/MazeCanvas'
 import { type MazeTransferPayload } from './mazeTransfer.shared'
 
@@ -109,5 +113,6 @@ export function parseMazeTransferPayload(
         walls: { ...cell.walls },
       })),
     ),
+    seed: typeof payload.seed === 'number' ? normalizeMazeSeed(payload.seed) : undefined,
   }
 }

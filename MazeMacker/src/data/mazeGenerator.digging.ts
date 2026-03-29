@@ -5,15 +5,21 @@ import {
   createVisitedGrid,
   DIRECTION_OFFSETS,
   isInBounds,
+  normalizeMazeSeed,
   OPPOSITE_DIRECTION,
   shuffleDirections,
   type MazeDimensions,
   type MazeGenerationState,
 } from './mazeGenerator.shared'
 
-export function createDiggingState(dimensions: MazeDimensions): MazeGenerationState {
+export function createDiggingState(
+  dimensions: MazeDimensions,
+  seed: number | null,
+): MazeGenerationState {
   const maze = createInitialGrid(dimensions)
   const visited = createVisitedGrid(dimensions)
+  const normalizedSeed = seed === null ? null : normalizeMazeSeed(seed)
+  const shuffledDirections = shuffleDirections(normalizedSeed)
 
   visited[0][0] = true
 
@@ -26,7 +32,9 @@ export function createDiggingState(dimensions: MazeDimensions): MazeGenerationSt
     maze,
     pendingPillars: [],
     pendingWalls: [],
-    stack: [{ x: 0, y: 0, directions: shuffleDirections() }],
+    rngState: shuffledDirections.rngState,
+    seed: normalizedSeed,
+    stack: [{ x: 0, y: 0, directions: shuffledDirections.directions }],
     stepCount: 0,
     visited,
     wallGrid: null,
@@ -46,6 +54,7 @@ export function stepDiggingMazeGeneration(
     ...entry,
     directions: [...entry.directions],
   }))
+  let rngState = state.rngState
 
   while (stack.length > 0) {
     const current = stack[stack.length - 1]
@@ -68,10 +77,12 @@ export function stepDiggingMazeGeneration(
       maze[current.y][current.x].walls[direction] = false
       maze[nextY][nextX].walls[OPPOSITE_DIRECTION[direction]] = false
       visited[nextY][nextX] = true
+      const shuffledDirections = shuffleDirections(rngState)
+      rngState = shuffledDirections.rngState
       stack.push({
         x: nextX,
         y: nextY,
-        directions: shuffleDirections(),
+        directions: shuffledDirections.directions,
       })
 
       return {
@@ -83,6 +94,8 @@ export function stepDiggingMazeGeneration(
         maze,
         pendingPillars: state.pendingPillars,
         pendingWalls: state.pendingWalls,
+        rngState,
+        seed: state.seed,
         stack,
         stepCount: state.stepCount + 1,
         visited,
@@ -102,6 +115,8 @@ export function stepDiggingMazeGeneration(
       maze,
       pendingPillars: state.pendingPillars,
       pendingWalls: state.pendingWalls,
+      rngState,
+      seed: state.seed,
       stack,
       stepCount: state.stepCount + 1,
       visited,

@@ -24,6 +24,13 @@
     "columns": "横",
     "rows": "縦"
   },
+  "seed": {
+    "label": "シード",
+    "randomize": "ランダム",
+    "modeLabel": "シード反映",
+    "enabled": "反映する",
+    "disabled": "反映しない"
+  },
   "algorithm": {
     "label": "生成方式",
     "options": {
