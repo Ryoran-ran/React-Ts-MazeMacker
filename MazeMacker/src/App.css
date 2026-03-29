@@ -153,9 +153,18 @@
 
 .app__fieldHeader {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.app__fieldHeaderActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .app__fieldLabel {
@@ -163,6 +172,7 @@
   font-weight: 700;
   color: var(--text-h);
   text-align: left;
+  white-space: nowrap;
 }
 
 .app__fieldMeta {
@@ -170,6 +180,7 @@
   font-weight: 700;
   color: #6b7280;
   text-align: right;
+  white-space: nowrap;
 }
 
 .app__input {
@@ -181,6 +192,33 @@
   font: inherit;
   color: var(--text-h);
   background: var(--bg);
+}
+
+.app__textarea {
+  width: 100%;
+  min-height: 180px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-h);
+  background: var(--bg);
+  resize: vertical;
+}
+
+.app__srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .app__range {
@@ -206,6 +244,12 @@
   color: #fff;
   background: #111827;
   cursor: pointer;
+}
+
+.app__button--compact {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .app__button:disabled {

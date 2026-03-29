@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import MazeCanvas, {
   type MazeEditMode,
   type MazeData,
@@ -24,6 +24,11 @@ import {
   type MazeSearchState,
   type MazeSearchAlgorithm,
 } from '../data/mazeSearch'
+import {
+  buildMazeTransferPayload,
+  downloadMazeTransferPayload,
+} from '../data/mazeTransfer.export'
+import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
@@ -169,6 +174,7 @@ function getAdjacentPosition(
 }
 
 function MazeScreen() {
+  const importFileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
     MazeSearchAlgorithm[]
@@ -194,6 +200,8 @@ function MazeScreen() {
     useState<PlayWallDiscoveryMode>('visited')
   const [playWallVisibilityMode, setPlayWallVisibilityMode] =
     useState<PlayWallVisibilityMode>('all')
+  const [mazeTransferText, setMazeTransferText] = useState('')
+  const [mazeTransferStatus, setMazeTransferStatus] = useState<string | null>(null)
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -524,6 +532,82 @@ function MazeScreen() {
     setGenerationState((currentState) => setMazeCellKind(currentState, position, nextKind))
   }
 
+  function handleExportMaze() {
+    const payload = buildMazeTransferPayload(
+      generationState.maze,
+      generationState.dimensions,
+      selectedAlgorithm,
+    )
+    const json = downloadMazeTransferPayload(
+      payload,
+      generationState.dimensions,
+      selectedAlgorithm,
+    )
+
+    setMazeTransferText(json)
+    setMazeTransferStatus(mazeScreenText.importExport.exported)
+  }
+
+  function applyImportedMaze(mazeTransferJson: string) {
+    try {
+      const importedPayload = parseMazeTransferPayload(mazeTransferJson, {
+        dimensionMismatch: mazeScreenText.importExport.errors.dimensionMismatch,
+        invalidJson: mazeScreenText.importExport.errors.invalidJson,
+        invalidMarkers: mazeScreenText.importExport.errors.invalidMarkers,
+        invalidMaze: mazeScreenText.importExport.errors.invalidMaze,
+      })
+      const nextAlgorithm = importedPayload.algorithm ?? selectedAlgorithm
+      const nextDimensions = importedPayload.dimensions ?? {
+        columns: importedPayload.maze[0].length,
+        rows: importedPayload.maze.length,
+      }
+
+      setIsPlaying(false)
+      setIsSearchPlaying(false)
+      setSelectedAlgorithm(nextAlgorithm)
+      setMazeTransferText(mazeTransferJson)
+      setDimensionInputs({
+        columns: String(nextDimensions.columns),
+        rows: String(nextDimensions.rows),
+      })
+      setGenerationState({
+        ...createMazeGenerationState(nextDimensions, nextAlgorithm),
+        currentCell: null,
+        isComplete: true,
+        maze: importedPayload.maze,
+        stepCount: 0,
+      })
+      setMazeTransferStatus(mazeScreenText.importExport.imported)
+    } catch (error) {
+      setMazeTransferStatus(
+        error instanceof Error ? error.message : mazeScreenText.importExport.errors.invalidJson,
+      )
+    }
+  }
+
+  function handleImportFromTextArea() {
+    applyImportedMaze(mazeTransferText)
+  }
+
+  function handleImportFromFile() {
+    importFileInputRef.current?.click()
+  }
+
+  async function handleImportFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const mazeTransferJson = await file.text()
+      applyImportedMaze(mazeTransferJson)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
   return (
     <main className="app">
       <header className="app__topbar">
@@ -732,8 +816,55 @@ function MazeScreen() {
                     />
                   </label>
                 </div>
+                <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">
+                      {mazeScreenText.importExport.label}
+                    </span>
+                    <div className="app__fieldHeaderActions">
+                      {mazeTransferStatus ? (
+                        <span className="app__fieldMeta">{mazeTransferStatus}</span>
+                      ) : null}
+                      <button
+                        className="app__button app__button--compact"
+                        onClick={handleImportFromTextArea}
+                        disabled={mazeTransferText.trim().length === 0}
+                      >
+                        {mazeScreenText.importExport.importText}
+                      </button>
+                      <input
+                        ref={importFileInputRef}
+                        className="app__srOnly"
+                        type="file"
+                        accept="application/json,.json"
+                        onChange={handleImportFileChange}
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    className="app__textarea"
+                    value={mazeTransferText}
+                    placeholder={mazeScreenText.importExport.placeholder}
+                    onChange={(event) => {
+                      setMazeTransferText(event.target.value)
+                      setMazeTransferStatus(null)
+                    }}
+                  />
+                </div>
               </div>
               <div className="app__controlsActions">
+                <button
+                  className="app__button"
+                  onClick={handleExportMaze}
+                >
+                  {mazeScreenText.importExport.export}
+                </button>
+                <button
+                  className="app__button"
+                  onClick={handleImportFromFile}
+                >
+                  {mazeScreenText.importExport.import}
+                </button>
                 <button
                   className="app__button app__button--secondary"
                   onClick={handleApplyDimensions}

@@ -42,6 +42,21 @@
       "goal": "ゴール"
     }
   },
+  "importExport": {
+    "label": "迷路データ",
+    "placeholder": "ここに迷路 JSON を貼り付けます。",
+    "export": "エクスポート",
+    "import": "インポート",
+    "importText": "JSON反映",
+    "exported": "OK",
+    "imported": "OK",
+    "errors": {
+      "invalidJson": "JSON を読み取れません",
+      "invalidMaze": "迷路データの形式が不正です",
+      "invalidMarkers": "start と goal は1つずつ必要です",
+      "dimensionMismatch": "dimensions と maze のサイズが一致しません"
+    }
+  },
   "search": {
     "algorithmLabel": "探索方式",
     "hint": "現在の迷路に対して探索を実行します。",
