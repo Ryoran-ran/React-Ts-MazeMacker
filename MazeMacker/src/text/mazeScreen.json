@@ -4,7 +4,8 @@
     "controls": "操作",
     "settings": "設定",
     "edit": "編集",
-    "search": "探索"
+    "search": "探索",
+    "play": "遊ぶ"
   },
   "buttons": {
     "applySize": "サイズを反映",
@@ -50,6 +51,11 @@
       "steps": "search steps",
       "solved": "solved"
     }
+  },
+  "play": {
+    "hint": "矢印キーまたは WASD で移動します。",
+    "steps": "play steps",
+    "solved": "solved"
   },
   "status": {
     "algorithm": "algorithm",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import MazeCanvas, {
   type MazeEditMode,
+  type MazeData,
   type MazeWallDirection,
 } from '../components/MazeCanvas'
 import {
@@ -27,8 +28,14 @@ import mazeScreenText from '../text/mazeScreen.json'
 
 const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
-type SidebarTab = 'controls' | 'settings' | 'edit' | 'search'
+type SidebarTab = 'controls' | 'settings' | 'edit' | 'play' | 'search'
 type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
+type PlayerState = {
+  isSolved: boolean
+  position: { x: number; y: number }
+  stepCount: number
+  visited: boolean[][]
+}
 
 function normalizeDimension(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
@@ -51,6 +58,57 @@ function createSearchStateMap(
   }
 }
 
+function createBooleanGrid(maze: MazeData) {
+  return maze.map((row) => row.map(() => false))
+}
+
+function findCellByKind(maze: MazeData, kind: 'goal' | 'start') {
+  for (let y = 0; y < maze.length; y += 1) {
+    for (let x = 0; x < maze[y].length; x += 1) {
+      if (maze[y][x].kind === kind) {
+        return { x, y }
+      }
+    }
+  }
+
+  return null
+}
+
+function createPlayerState(maze: MazeData): PlayerState {
+  const position = findCellByKind(maze, 'start') ?? { x: 0, y: 0 }
+  const visited = createBooleanGrid(maze)
+  visited[position.y][position.x] = true
+
+  return {
+    isSolved: maze[position.y][position.x].kind === 'goal',
+    position,
+    stepCount: 0,
+    visited,
+  }
+}
+
+function getNextPosition(
+  maze: MazeData,
+  position: { x: number; y: number },
+  direction: MazeWallDirection,
+) {
+  if (maze[position.y][position.x].walls[direction]) {
+    return null
+  }
+
+  if (direction === 'top') {
+    return position.y > 0 ? { x: position.x, y: position.y - 1 } : null
+  }
+  if (direction === 'right') {
+    return position.x < maze[0].length - 1 ? { x: position.x + 1, y: position.y } : null
+  }
+  if (direction === 'bottom') {
+    return position.y < maze.length - 1 ? { x: position.x, y: position.y + 1 } : null
+  }
+
+  return position.x > 0 ? { x: position.x - 1, y: position.y } : null
+}
+
 function MazeScreen() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
@@ -61,6 +119,9 @@ function MazeScreen() {
   )
   const [searchStates, setSearchStates] = useState<SearchStateMap>(() =>
     createSearchStateMap(createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze),
+  )
+  const [playerState, setPlayerState] = useState<PlayerState>(() =>
+    createPlayerState(createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze),
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
@@ -125,7 +186,42 @@ function MazeScreen() {
   useEffect(() => {
     setIsSearchPlaying(false)
     setSearchStates(createSearchStateMap(generationState.maze))
+    setPlayerState(createPlayerState(generationState.maze))
   }, [generationState.maze])
+
+  useEffect(() => {
+    if (activeTab !== 'play') {
+      return
+    }
+
+    const keyToDirection: Record<string, MazeWallDirection> = {
+      ArrowDown: 'bottom',
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      ArrowUp: 'top',
+      a: 'left',
+      d: 'right',
+      s: 'bottom',
+      w: 'top',
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const direction = keyToDirection[event.key]
+
+      if (!direction) {
+        return
+      }
+
+      event.preventDefault()
+      handlePlayerMove(direction)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeTab, generationState.maze, playerState])
 
   function handleStep() {
     setGenerationState((currentState) => stepMazeGeneration(currentState))
@@ -152,7 +248,7 @@ function MazeScreen() {
   }
 
   function handleTabChange(nextTab: SidebarTab) {
-    if (nextTab === 'edit' || nextTab === 'search') {
+    if (nextTab === 'edit' || nextTab === 'play' || nextTab === 'search') {
       setIsPlaying(false)
     }
 
@@ -218,6 +314,10 @@ function MazeScreen() {
     setSearchStates(createSearchStateMap(generationState.maze))
   }
 
+  function handlePlayReset() {
+    setPlayerState(createPlayerState(generationState.maze))
+  }
+
   function handleAlgorithmChange(nextAlgorithm: MazeAlgorithm) {
     const nextDimensions = buildDimensionsFromInputs()
 
@@ -244,6 +344,30 @@ function MazeScreen() {
   const areSelectedSearchesComplete = selectedSearchAlgorithms.every(
     (algorithm) => searchStates[algorithm].isComplete,
   )
+
+  function handlePlayerMove(direction: MazeWallDirection) {
+    setPlayerState((currentState) => {
+      if (currentState.isSolved) {
+        return currentState
+      }
+
+      const nextPosition = getNextPosition(generationState.maze, currentState.position, direction)
+
+      if (!nextPosition) {
+        return currentState
+      }
+
+      const visited = currentState.visited.map((row) => [...row])
+      visited[nextPosition.y][nextPosition.x] = true
+
+      return {
+        isSolved: generationState.maze[nextPosition.y][nextPosition.x].kind === 'goal',
+        position: nextPosition,
+        stepCount: currentState.stepCount + 1,
+        visited,
+      }
+    })
+  }
 
   function handleWallToggle(
     position: { x: number; y: number },
@@ -318,6 +442,14 @@ function MazeScreen() {
               )
             })}
           </div>
+        ) : activeTab === 'play' ? (
+          <MazeCanvas
+            maze={generationState.maze}
+            visited={playerState.visited}
+            currentCell={playerState.position}
+            currentCellSpan={{ columns: 1, rows: 1 }}
+            cellSize={24}
+          />
         ) : (
           <MazeCanvas
             maze={generationState.maze}
@@ -382,6 +514,15 @@ function MazeScreen() {
             onClick={() => handleTabChange('search')}
           >
             {mazeScreenText.tabs.search}
+          </button>
+          <button
+            className={`app__tab ${activeTab === 'play' ? 'app__tab--active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'play'}
+            onClick={() => handleTabChange('play')}
+          >
+            {mazeScreenText.tabs.play}
           </button>
         </div>
 
@@ -574,6 +715,20 @@ function MazeScreen() {
               <button
                 className="app__button app__button--secondary"
                 onClick={handleSearchReset}
+              >
+                {mazeScreenText.buttons.reset}
+              </button>
+            </>
+          ) : activeTab === 'play' ? (
+            <>
+              <p className="app__status">{mazeScreenText.play.hint}</p>
+              <p className="app__status">
+                {mazeScreenText.play.steps}: {playerState.stepCount}
+                {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
+              </p>
+              <button
+                className="app__button app__button--secondary"
+                onClick={handlePlayReset}
               >
                 {mazeScreenText.buttons.reset}
               </button>
