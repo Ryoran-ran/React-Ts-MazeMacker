@@ -116,14 +116,28 @@
 }
 
 .app__controls {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
+  min-height: 0;
+}
+
+.app__controlsBody {
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app__controlsActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: var(--bg);
 }
 
 .app__sizeFields {
@@ -137,11 +151,25 @@
   gap: 6px;
 }
 
+.app__fieldHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .app__fieldLabel {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--text-h);
   text-align: left;
+}
+
+.app__fieldMeta {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-align: right;
 }
 
 .app__input {
@@ -155,10 +183,24 @@
   background: var(--bg);
 }
 
+.app__range {
+  width: 100%;
+  margin: 0;
+}
+
+.app__rangeLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
 .app__button {
   border: 0;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   font: inherit;
   font-weight: 700;
   color: #fff;
@@ -248,13 +290,29 @@
   gap: 8px;
 }
 
+.app__playPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .app__playHint {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--text-h);
   text-align: left;
- }
+}
+
+.app__playStatus {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-h);
+  text-align: right;
+  white-space: nowrap;
+}
 
 .maze-canvas {
   width: 100%;

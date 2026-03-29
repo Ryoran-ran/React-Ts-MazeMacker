@@ -1,8 +1,7 @@
 {
   "title": "Maze Renderer",
   "tabs": {
-    "controls": "操作",
-    "settings": "設定",
+    "controls": "迷路",
     "edit": "編集",
     "search": "探索",
     "play": "遊ぶ"
@@ -14,6 +13,12 @@
     "stop": "停止",
     "complete": "最後まで作成",
     "reset": "リセット"
+  },
+  "speed": {
+    "fast": "速い",
+    "generation": "生成スピード",
+    "search": "探索スピード",
+    "slow": "遅い"
   },
   "size": {
     "columns": "横",
@@ -43,7 +48,11 @@
     "options": {
       "astar": "A*探索",
       "bfs": "ダイクストラ法",
+      "deadEndFilling": "行き止まり埋め",
       "dfs": "深さ優先探索",
+      "goalPruning": "枝刈り探索",
+      "leftHand": "左手探索法",
+      "tremaux": "Trémaux法",
       "rightHand": "右手探索法"
     },
     "status": {
@@ -67,6 +76,7 @@
     "solved": "solved",
     "wallHidden": "隠す",
     "wallLabel": "迷路の壁",
+    "wallNearby": "周りのみ",
     "wallVisible": "表示する"
   },
   "status": {

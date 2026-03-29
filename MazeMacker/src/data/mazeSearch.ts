@@ -1,7 +1,11 @@
 import { stepAStarSearch } from './mazeSearch.astar'
 import { stepBreadthFirstSearch } from './mazeSearch.bfs'
+import { stepDeadEndFillingSearch } from './mazeSearch.deadEndFilling'
 import { stepDepthFirstSearch } from './mazeSearch.dfs'
+import { stepGoalPruningSearch } from './mazeSearch.goalPruning'
+import { stepLeftHandSearch } from './mazeSearch.leftHand'
 import { stepRightHandSearch } from './mazeSearch.rightHand'
+import { stepTremauxSearch } from './mazeSearch.tremaux'
 import {
   MAZE_SEARCH_ALGORITHM_OPTIONS,
   completeMazeSearch as completeMazeSearchWithStep,
@@ -24,6 +28,22 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
 
   if (state.algorithm === 'rightHand') {
     return stepRightHandSearch(state)
+  }
+
+  if (state.algorithm === 'deadEndFilling') {
+    return stepDeadEndFillingSearch(state)
+  }
+
+  if (state.algorithm === 'goalPruning') {
+    return stepGoalPruningSearch(state)
+  }
+
+  if (state.algorithm === 'tremaux') {
+    return stepTremauxSearch(state)
+  }
+
+  if (state.algorithm === 'leftHand') {
+    return stepLeftHandSearch(state)
   }
 
   if (state.algorithm === 'dfs') {

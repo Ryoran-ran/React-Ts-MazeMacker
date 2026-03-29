@@ -26,10 +26,14 @@ import {
 } from '../data/mazeSearch'
 import mazeScreenText from '../text/mazeScreen.json'
 
-const PLAY_INTERVAL_MS = 40
+const DEFAULT_GENERATION_INTERVAL_MS = 40
+const DEFAULT_SEARCH_INTERVAL_MS = 40
+const MAX_PLAYBACK_INTERVAL_MS = 180
+const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
-type SidebarTab = 'controls' | 'settings' | 'edit' | 'play' | 'search'
+type SidebarTab = 'controls' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
+type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
 type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
 type RevealedWall = {
@@ -60,13 +64,21 @@ function normalizeDimension(value: string, fallback: number) {
   return Math.max(MIN_DIMENSION, parsed)
 }
 
+function getPlaybackLabel(intervalMs: number) {
+  return `${Math.round(1000 / intervalMs)} fps`
+}
+
 function createSearchStateMap(
   maze: MazeSearchState['maze'],
 ): SearchStateMap {
   return {
     astar: createMazeSearchState(maze, 'astar'),
     bfs: createMazeSearchState(maze, 'bfs'),
+    deadEndFilling: createMazeSearchState(maze, 'deadEndFilling'),
     dfs: createMazeSearchState(maze, 'dfs'),
+    goalPruning: createMazeSearchState(maze, 'goalPruning'),
+    leftHand: createMazeSearchState(maze, 'leftHand'),
+    tremaux: createMazeSearchState(maze, 'tremaux'),
     rightHand: createMazeSearchState(maze, 'rightHand'),
   }
 }
@@ -160,7 +172,7 @@ function MazeScreen() {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
     MazeSearchAlgorithm[]
-  >(['bfs', 'dfs'])
+  >(['astar'])
   const [generationState, setGenerationState] = useState(() =>
     createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging'),
   )
@@ -173,12 +185,15 @@ function MazeScreen() {
   const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
+  const [generationIntervalMs, setGenerationIntervalMs] = useState(DEFAULT_GENERATION_INTERVAL_MS)
+  const [searchIntervalMs, setSearchIntervalMs] = useState(DEFAULT_SEARCH_INTERVAL_MS)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
-  const [showWallsInPlay, setShowWallsInPlay] = useState(true)
+  const [playWallVisibilityMode, setPlayWallVisibilityMode] =
+    useState<PlayWallVisibilityMode>('all')
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -191,12 +206,12 @@ function MazeScreen() {
 
     const timerId = window.setInterval(() => {
       setGenerationState((currentState) => stepMazeGeneration(currentState))
-    }, PLAY_INTERVAL_MS)
+    }, generationIntervalMs)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [generationState.isComplete, isPlaying])
+  }, [generationIntervalMs, generationState.isComplete, isPlaying])
 
   useEffect(() => {
     if (
@@ -216,12 +231,12 @@ function MazeScreen() {
 
         return nextStates
       })
-    }, PLAY_INTERVAL_MS)
+    }, searchIntervalMs)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [isSearchPlaying, selectedSearchAlgorithms])
+  }, [isSearchPlaying, searchIntervalMs, selectedSearchAlgorithms])
 
   useEffect(() => {
     if (generationState.isComplete) {
@@ -566,15 +581,22 @@ function MazeScreen() {
           </div>
         ) : activeTab === 'play' ? (
           <div className="app__playPanel">
-            <p className="app__playHint">{mazeScreenText.play.hint}</p>
+            <div className="app__playPanelHeader">
+              <p className="app__playHint">{mazeScreenText.play.hint}</p>
+              <p className="app__playStatus">
+                {mazeScreenText.play.steps}: {playerState.stepCount}
+                {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
+              </p>
+            </div>
             <MazeCanvas
               bumpState={playerBumpState}
+              celebrateGoal={playerState.isSolved}
               currentFacingDirection={playerState.facingDirection}
               maze={generationState.maze}
               playHandGuideMode={playHandGuideMode}
+              playWallVisibilityMode={playWallVisibilityMode}
               revealedWalls={playerState.revealedWalls}
               showVisitedWalls={playWallDiscoveryMode === 'visited'}
-              showWalls={showWallsInPlay}
               visited={playerState.visited}
               currentCell={playerState.position}
               currentCellSpan={{ columns: 1, rows: 1 }}
@@ -620,15 +642,6 @@ function MazeScreen() {
             {mazeScreenText.tabs.controls}
           </button>
           <button
-            className={`app__tab ${activeTab === 'settings' ? 'app__tab--active' : ''}`}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'settings'}
-            onClick={() => handleTabChange('settings')}
-          >
-            {mazeScreenText.tabs.settings}
-          </button>
-          <button
             className={`app__tab ${activeTab === 'edit' ? 'app__tab--active' : ''}`}
             type="button"
             role="tab"
@@ -658,324 +671,395 @@ function MazeScreen() {
         </div>
 
         <section className="app__controls">
-          {activeTab === 'settings' ? (
+          {activeTab === 'edit' ? (
             <>
-              <label className="app__field">
-                <span className="app__fieldLabel">{mazeScreenText.algorithm.label}</span>
-                <select
-                  className="app__input"
-                  value={selectedAlgorithm}
-                  onChange={(event) =>
-                    handleAlgorithmChange(event.target.value as MazeAlgorithm)
-                  }
-                >
-                  {MAZE_ALGORITHM_OPTIONS.map((algorithm) => (
-                    <option key={algorithm.value} value={algorithm.value}>
-                      {algorithm.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="app__sizeFields">
-                <label className="app__field">
-                  <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
-                  <input
-                    className="app__input"
-                    type="number"
-                    min={MIN_DIMENSION}
-                    step={1}
-                    value={dimensionInputs.columns}
-                    onChange={(event) =>
-                      setDimensionInputs((current) => ({
-                        ...current,
-                        columns: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="app__field">
-                  <span className="app__fieldLabel">{mazeScreenText.size.rows}</span>
-                  <input
-                    className="app__input"
-                    type="number"
-                    min={MIN_DIMENSION}
-                    step={1}
-                    value={dimensionInputs.rows}
-                    onChange={(event) =>
-                      setDimensionInputs((current) => ({
-                        ...current,
-                        rows: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
+              <div className="app__controlsBody">
+                <p className="app__status">{mazeScreenText.edit.hint}</p>
+                <div className="app__tabs app__tabs--edit" role="tablist" aria-label="Edit modes">
+                  <button
+                    className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setEditMode('wall')}
+                  >
+                    {mazeScreenText.edit.modes.wall}
+                  </button>
+                  <button
+                    className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setEditMode('start')}
+                  >
+                    {mazeScreenText.edit.modes.start}
+                  </button>
+                  <button
+                    className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setEditMode('goal')}
+                  >
+                    {mazeScreenText.edit.modes.goal}
+                  </button>
+                </div>
+                <div className="app__sizeFields">
+                  <label className="app__field">
+                    <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_DIMENSION}
+                      step={1}
+                      value={dimensionInputs.columns}
+                      onChange={(event) =>
+                        setDimensionInputs((current) => ({
+                          ...current,
+                          columns: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="app__field">
+                    <span className="app__fieldLabel">{mazeScreenText.size.rows}</span>
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_DIMENSION}
+                      step={1}
+                      value={dimensionInputs.rows}
+                      onChange={(event) =>
+                        setDimensionInputs((current) => ({
+                          ...current,
+                          rows: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
               </div>
-              <button
-                className="app__button app__button--secondary"
-                onClick={handleApplyDimensions}
-              >
-                {mazeScreenText.buttons.applySize}
-              </button>
-            </>
-          ) : activeTab === 'edit' ? (
-            <>
-              <p className="app__status">{mazeScreenText.edit.hint}</p>
-              <div className="app__tabs app__tabs--edit" role="tablist" aria-label="Edit modes">
+              <div className="app__controlsActions">
                 <button
-                  className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
-                  type="button"
-                  onClick={() => setEditMode('wall')}
+                  className="app__button app__button--secondary"
+                  onClick={handleApplyDimensions}
                 >
-                  {mazeScreenText.edit.modes.wall}
+                  {mazeScreenText.buttons.applySize}
                 </button>
                 <button
-                  className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
-                  type="button"
-                  onClick={() => setEditMode('start')}
+                  className="app__button"
+                  onClick={handleComplete}
+                  disabled={generationState.isComplete}
                 >
-                  {mazeScreenText.edit.modes.start}
+                  {mazeScreenText.buttons.complete}
                 </button>
-                <button
-                  className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
-                  type="button"
-                  onClick={() => setEditMode('goal')}
-                >
-                  {mazeScreenText.edit.modes.goal}
+                <button className="app__button app__button--secondary" onClick={handleReset}>
+                  {mazeScreenText.buttons.reset}
                 </button>
               </div>
-              <div className="app__sizeFields">
-                <label className="app__field">
-                  <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
-                  <input
-                    className="app__input"
-                    type="number"
-                    min={MIN_DIMENSION}
-                    step={1}
-                    value={dimensionInputs.columns}
-                    onChange={(event) =>
-                      setDimensionInputs((current) => ({
-                        ...current,
-                        columns: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="app__field">
-                  <span className="app__fieldLabel">{mazeScreenText.size.rows}</span>
-                  <input
-                    className="app__input"
-                    type="number"
-                    min={MIN_DIMENSION}
-                    step={1}
-                    value={dimensionInputs.rows}
-                    onChange={(event) =>
-                      setDimensionInputs((current) => ({
-                        ...current,
-                        rows: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              </div>
-              <button
-                className="app__button app__button--secondary"
-                onClick={handleApplyDimensions}
-              >
-                {mazeScreenText.buttons.applySize}
-              </button>
-              <button
-                className="app__button"
-                onClick={handleComplete}
-                disabled={generationState.isComplete}
-              >
-                {mazeScreenText.buttons.complete}
-              </button>
-              <button className="app__button app__button--secondary" onClick={handleReset}>
-                {mazeScreenText.buttons.reset}
-              </button>
             </>
           ) : activeTab === 'search' ? (
             <>
-              <div className="app__field">
-                <span className="app__fieldLabel">
-                  {mazeScreenText.search.algorithmLabel}
-                </span>
-                <div
-                  className="app__tabs app__tabs--search"
-                  role="tablist"
-                  aria-label="Search algorithms"
-                >
-                  {MAZE_SEARCH_ALGORITHM_OPTIONS.map((algorithm) => (
-                    <button
-                      key={algorithm.value}
-                      className={`app__tab ${
-                        selectedSearchAlgorithms.includes(algorithm.value)
-                          ? 'app__tab--active'
-                          : ''
-                      }`}
-                      type="button"
-                      onClick={() => handleSearchAlgorithmToggle(algorithm.value)}
-                    >
-                      {algorithm.label}
-                    </button>
-                  ))}
+              <div className="app__controlsBody">
+                <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">{mazeScreenText.speed.search}</span>
+                    <span className="app__fieldMeta">{getPlaybackLabel(searchIntervalMs)}</span>
+                  </div>
+                  <input
+                    className="app__range"
+                    type="range"
+                    min={MIN_PLAYBACK_INTERVAL_MS}
+                    max={MAX_PLAYBACK_INTERVAL_MS}
+                    step={10}
+                    value={MAX_PLAYBACK_INTERVAL_MS + MIN_PLAYBACK_INTERVAL_MS - searchIntervalMs}
+                    onChange={(event) =>
+                      setSearchIntervalMs(
+                        MAX_PLAYBACK_INTERVAL_MS +
+                          MIN_PLAYBACK_INTERVAL_MS -
+                          Number(event.target.value),
+                      )
+                    }
+                  />
+                  <div className="app__rangeLabels" aria-hidden="true">
+                    <span>{mazeScreenText.speed.slow}</span>
+                    <span>{mazeScreenText.speed.fast}</span>
+                  </div>
                 </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">
+                    {mazeScreenText.search.algorithmLabel}
+                  </span>
+                  <div
+                    className="app__tabs app__tabs--stacked"
+                    role="tablist"
+                    aria-label="Search algorithms"
+                  >
+                    {MAZE_SEARCH_ALGORITHM_OPTIONS.map((algorithm) => (
+                      <button
+                        key={algorithm.value}
+                        className={`app__tab ${
+                          selectedSearchAlgorithms.includes(algorithm.value)
+                            ? 'app__tab--active'
+                            : ''
+                        }`}
+                        type="button"
+                        onClick={() => handleSearchAlgorithmToggle(algorithm.value)}
+                      >
+                        {algorithm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="app__status">{mazeScreenText.search.hint}</p>
               </div>
-              <p className="app__status">{mazeScreenText.search.hint}</p>
-              <button
-                className="app__button"
-                onClick={handleSearchStep}
-                disabled={areSelectedSearchesComplete || isSearchPlaying}
-              >
-                {mazeScreenText.buttons.step}
-              </button>
-              <button
-                className="app__button"
-                onClick={handleSearchPlayToggle}
-                disabled={areSelectedSearchesComplete}
-              >
-                {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
-              </button>
-              <button
-                className="app__button"
-                onClick={handleSearchComplete}
-                disabled={areSelectedSearchesComplete}
-              >
-                {mazeScreenText.buttons.complete}
-              </button>
-              <button
-                className="app__button app__button--secondary"
-                onClick={handleSearchReset}
-              >
-                {mazeScreenText.buttons.reset}
-              </button>
+              <div className="app__controlsActions">
+                <button
+                  className="app__button"
+                  onClick={handleSearchStep}
+                  disabled={areSelectedSearchesComplete || isSearchPlaying}
+                >
+                  {mazeScreenText.buttons.step}
+                </button>
+                <button
+                  className="app__button"
+                  onClick={handleSearchPlayToggle}
+                  disabled={areSelectedSearchesComplete}
+                >
+                  {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+                </button>
+                <button
+                  className="app__button"
+                  onClick={handleSearchComplete}
+                  disabled={areSelectedSearchesComplete}
+                >
+                  {mazeScreenText.buttons.complete}
+                </button>
+                <button
+                  className="app__button app__button--secondary"
+                  onClick={handleSearchReset}
+                >
+                  {mazeScreenText.buttons.reset}
+                </button>
+              </div>
             </>
           ) : activeTab === 'play' ? (
             <>
-              <div className="app__field">
-                <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
+              <div className="app__controlsBody">
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
                 <div className="app__tabs app__tabs--search" role="tablist" aria-label="Play wall settings">
                   <button
-                    className={`app__tab ${showWallsInPlay ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${playWallVisibilityMode === 'all' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setShowWallsInPlay(true)}
+                    onClick={() => setPlayWallVisibilityMode('all')}
                   >
                     {mazeScreenText.play.wallVisible}
                   </button>
                   <button
-                    className={`app__tab ${!showWallsInPlay ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${playWallVisibilityMode === 'nearby' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setShowWallsInPlay(false)}
+                    onClick={() => setPlayWallVisibilityMode('nearby')}
+                  >
+                    {mazeScreenText.play.wallNearby}
+                  </button>
+                  <button
+                    className={`app__tab ${playWallVisibilityMode === 'hidden' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayWallVisibilityMode('hidden')}
                   >
                     {mazeScreenText.play.wallHidden}
                   </button>
+                  </div>
+                </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.play.discoveredWallLabel}</span>
+                  <div
+                    className="app__tabs app__tabs--stacked"
+                    role="tablist"
+                    aria-label="Discovered wall settings"
+                  >
+                    <button
+                      className={`app__tab ${playWallDiscoveryMode === 'bumpOnly' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayWallDiscoveryMode('bumpOnly')}
+                    >
+                      {mazeScreenText.play.discoveredWallBumpOnly}
+                    </button>
+                    <button
+                      className={`app__tab ${playWallDiscoveryMode === 'visited' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayWallDiscoveryMode('visited')}
+                    >
+                      {mazeScreenText.play.discoveredWallVisited}
+                    </button>
+                    <button
+                      className={`app__tab ${playWallDiscoveryMode === 'hidden' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayWallDiscoveryMode('hidden')}
+                    >
+                      {mazeScreenText.play.discoveredWallHidden}
+                    </button>
+                  </div>
+                </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.play.handGuideLabel}</span>
+                  <div
+                    className="app__tabs app__tabs--stacked"
+                    role="tablist"
+                    aria-label="Hand guide settings"
+                  >
+                    <button
+                      className={`app__tab ${playHandGuideMode === 'right' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayHandGuideMode('right')}
+                    >
+                      {mazeScreenText.play.handGuideRight}
+                    </button>
+                    <button
+                      className={`app__tab ${playHandGuideMode === 'left' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayHandGuideMode('left')}
+                    >
+                      {mazeScreenText.play.handGuideLeft}
+                    </button>
+                    <button
+                      className={`app__tab ${playHandGuideMode === 'hidden' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayHandGuideMode('hidden')}
+                    >
+                      {mazeScreenText.play.handGuideHidden}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="app__field">
-                <span className="app__fieldLabel">{mazeScreenText.play.discoveredWallLabel}</span>
-                <div
-                  className="app__tabs app__tabs--stacked"
-                  role="tablist"
-                  aria-label="Discovered wall settings"
+              <div className="app__controlsActions">
+                <button
+                  className="app__button"
+                  onClick={handlePlayGenerate}
                 >
-                  <button
-                    className={`app__tab ${playWallDiscoveryMode === 'bumpOnly' ? 'app__tab--active' : ''}`}
-                    type="button"
-                    onClick={() => setPlayWallDiscoveryMode('bumpOnly')}
-                  >
-                    {mazeScreenText.play.discoveredWallBumpOnly}
-                  </button>
-                  <button
-                    className={`app__tab ${playWallDiscoveryMode === 'visited' ? 'app__tab--active' : ''}`}
-                    type="button"
-                    onClick={() => setPlayWallDiscoveryMode('visited')}
-                  >
-                    {mazeScreenText.play.discoveredWallVisited}
-                  </button>
-                  <button
-                    className={`app__tab ${playWallDiscoveryMode === 'hidden' ? 'app__tab--active' : ''}`}
-                    type="button"
-                    onClick={() => setPlayWallDiscoveryMode('hidden')}
-                  >
-                    {mazeScreenText.play.discoveredWallHidden}
-                  </button>
-                </div>
-              </div>
-              <div className="app__field">
-                <span className="app__fieldLabel">{mazeScreenText.play.handGuideLabel}</span>
-                <div
-                  className="app__tabs app__tabs--stacked"
-                  role="tablist"
-                  aria-label="Hand guide settings"
+                  {mazeScreenText.play.generate}
+                </button>
+                <button
+                  className="app__button app__button--secondary"
+                  onClick={handlePlayReset}
                 >
-                  <button
-                    className={`app__tab ${playHandGuideMode === 'right' ? 'app__tab--active' : ''}`}
-                    type="button"
-                    onClick={() => setPlayHandGuideMode('right')}
-                  >
-                    {mazeScreenText.play.handGuideRight}
-                  </button>
-                  <button
-                    className={`app__tab ${playHandGuideMode === 'left' ? 'app__tab--active' : ''}`}
-                    type="button"
-                    onClick={() => setPlayHandGuideMode('left')}
-                  >
-                    {mazeScreenText.play.handGuideLeft}
-                  </button>
-                  <button
-                    className={`app__tab ${playHandGuideMode === 'hidden' ? 'app__tab--active' : ''}`}
-                    type="button"
-                    onClick={() => setPlayHandGuideMode('hidden')}
-                  >
-                    {mazeScreenText.play.handGuideHidden}
-                  </button>
-                </div>
+                  {mazeScreenText.buttons.reset}
+                </button>
               </div>
-              <p className="app__status">
-                {mazeScreenText.play.steps}: {playerState.stepCount}
-                {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
-              </p>
-              <button
-                className="app__button"
-                onClick={handlePlayGenerate}
-              >
-                {mazeScreenText.play.generate}
-              </button>
-              <button
-                className="app__button app__button--secondary"
-                onClick={handlePlayReset}
-              >
-                {mazeScreenText.buttons.reset}
-              </button>
             </>
-          ) : (
+          ) : activeTab === 'controls' ? (
             <>
-              <button
-                className="app__button"
-                onClick={handleStep}
-                disabled={generationState.isComplete || isPlaying}
-              >
-                {mazeScreenText.buttons.step}
-              </button>
-              <button
-                className="app__button"
-                onClick={handlePlayToggle}
-                disabled={generationState.isComplete}
-              >
-                {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
-              </button>
-              <button
-                className="app__button"
-                onClick={handleComplete}
-                disabled={generationState.isComplete}
-              >
-                {mazeScreenText.buttons.complete}
-              </button>
-              <button className="app__button app__button--secondary" onClick={handleReset}>
-                {mazeScreenText.buttons.reset}
-              </button>
+              <div className="app__controlsBody">
+                <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">{mazeScreenText.speed.generation}</span>
+                    <span className="app__fieldMeta">{getPlaybackLabel(generationIntervalMs)}</span>
+                  </div>
+                  <input
+                    className="app__range"
+                    type="range"
+                    min={MIN_PLAYBACK_INTERVAL_MS}
+                    max={MAX_PLAYBACK_INTERVAL_MS}
+                    step={10}
+                    value={
+                      MAX_PLAYBACK_INTERVAL_MS +
+                      MIN_PLAYBACK_INTERVAL_MS -
+                      generationIntervalMs
+                    }
+                    onChange={(event) =>
+                      setGenerationIntervalMs(
+                        MAX_PLAYBACK_INTERVAL_MS +
+                          MIN_PLAYBACK_INTERVAL_MS -
+                          Number(event.target.value),
+                      )
+                    }
+                  />
+                  <div className="app__rangeLabels" aria-hidden="true">
+                    <span>{mazeScreenText.speed.slow}</span>
+                    <span>{mazeScreenText.speed.fast}</span>
+                  </div>
+                </div>
+                <label className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.algorithm.label}</span>
+                  <select
+                    className="app__input"
+                    value={selectedAlgorithm}
+                    onChange={(event) =>
+                      handleAlgorithmChange(event.target.value as MazeAlgorithm)
+                    }
+                  >
+                    {MAZE_ALGORITHM_OPTIONS.map((algorithm) => (
+                      <option key={algorithm.value} value={algorithm.value}>
+                        {algorithm.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="app__sizeFields">
+                  <label className="app__field">
+                    <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_DIMENSION}
+                      step={1}
+                      value={dimensionInputs.columns}
+                      onChange={(event) =>
+                        setDimensionInputs((current) => ({
+                          ...current,
+                          columns: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="app__field">
+                    <span className="app__fieldLabel">{mazeScreenText.size.rows}</span>
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_DIMENSION}
+                      step={1}
+                      value={dimensionInputs.rows}
+                      onChange={(event) =>
+                        setDimensionInputs((current) => ({
+                          ...current,
+                          rows: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="app__controlsActions">
+                <button
+                  className="app__button app__button--secondary"
+                  onClick={handleApplyDimensions}
+                >
+                  {mazeScreenText.buttons.applySize}
+                </button>
+                <button
+                  className="app__button"
+                  onClick={handleStep}
+                  disabled={generationState.isComplete || isPlaying}
+                >
+                  {mazeScreenText.buttons.step}
+                </button>
+                <button
+                  className="app__button"
+                  onClick={handlePlayToggle}
+                  disabled={generationState.isComplete}
+                >
+                  {isPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+                </button>
+                <button
+                  className="app__button"
+                  onClick={handleComplete}
+                  disabled={generationState.isComplete}
+                >
+                  {mazeScreenText.buttons.complete}
+                </button>
+                <button className="app__button app__button--secondary" onClick={handleReset}>
+                  {mazeScreenText.buttons.reset}
+                </button>
+              </div>
             </>
-          )}
+          ) : null
+          }
         </section>
       </aside>
     </main>
