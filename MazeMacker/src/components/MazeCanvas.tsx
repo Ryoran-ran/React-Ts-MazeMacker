@@ -22,12 +22,18 @@ type CellPosition = {
   y: number
 }
 
+type CellSpan = {
+  columns: number
+  rows: number
+}
+
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
   wallColor?: string
   backgroundColor?: string
   currentCell?: CellPosition | null
+  currentCellSpan?: CellSpan
   visited?: boolean[][]
   editable?: boolean
   editMode?: MazeEditMode
@@ -41,6 +47,7 @@ function MazeCanvas({
   wallColor = '#111827',
   backgroundColor = '#ffffff',
   currentCell = null,
+  currentCellSpan = { columns: 1, rows: 1 },
   visited,
   editable = false,
   editMode = 'wall',
@@ -161,7 +168,14 @@ function MazeCanvas({
               p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
             }
 
-            if (currentCell?.x === x && currentCell?.y === y) {
+            const isCurrentCellHighlighted =
+              currentCell !== null &&
+              x >= currentCell.x &&
+              x < Math.min(columnCount, currentCell.x + currentCellSpan.columns) &&
+              y >= currentCell.y &&
+              y < Math.min(rowCount, currentCell.y + currentCellSpan.rows)
+
+            if (isCurrentCellHighlighted) {
               p.noStroke()
               p.fill('#f59e0b')
               p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
@@ -175,10 +189,11 @@ function MazeCanvas({
               p.textAlign(p.CENTER, p.CENTER)
               p.textSize(Math.max(12, responsiveCellSize * 0.55))
               p.textStyle(p.BOLD)
+              const textYOffset = responsiveCellSize * 0.06
               p.text(
                 cell.kind === 'start' ? 'S' : 'G',
                 drawX + responsiveCellSize / 2,
-                drawY + responsiveCellSize / 2,
+                drawY + responsiveCellSize / 2 + textYOffset,
               )
             }
 
@@ -236,6 +251,8 @@ function MazeCanvas({
     containerSize.height,
     containerSize.width,
     currentCell,
+    currentCellSpan.columns,
+    currentCellSpan.rows,
     editMode,
     editable,
     maze,

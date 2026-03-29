@@ -1,194 +1,92 @@
-import { type MazeCell, type MazeData } from '../components/MazeCanvas'
+import { createPrimState, stepPrimMazeGeneration } from './mazeGenerator.prim'
+import { createDiggingState, stepDiggingMazeGeneration } from './mazeGenerator.digging'
+import {
+  createStickFallingState,
+  stepStickFallingMazeGeneration,
+} from './mazeGenerator.stickFalling'
+import {
+  createWallFillingState,
+  stepWallFillingMazeGeneration,
+} from './mazeGenerator.wallFilling'
+import {
+  createWallExtendingState,
+  stepWallExtendingMazeGeneration,
+} from './mazeGenerator.wallExtending'
+import {
+  cloneMaze,
+  createVisitedGrid,
+  DEFAULT_MAZE_DIMENSIONS,
+  type CellPosition,
+  type MazeAlgorithm,
+  type MazeCellKind,
+  type MazeDimensions,
+  type MazeGenerationState,
+  type MazeWallDirection,
+} from './mazeGenerator.shared'
 
-type Direction = 'top' | 'right' | 'bottom' | 'left'
-export type MazeWallDirection = Direction
-export type MazeCellKind = NonNullable<MazeCell['kind']>
-
-type CellPosition = {
-  x: number
-  y: number
+export {
+  DEFAULT_MAZE_DIMENSIONS,
+  type MazeAlgorithm,
+  type MazeCellKind,
+  type MazeDimensions,
+  type MazeGenerationState,
+  type MazeWallDirection,
 }
 
-export type MazeDimensions = {
-  columns: number
-  rows: number
-}
-
-type StackEntry = CellPosition & {
-  directions: Direction[]
-}
-
-export type MazeGenerationState = {
-  currentCell: CellPosition | null
-  dimensions: MazeDimensions
-  isComplete: boolean
-  maze: MazeData
-  stack: StackEntry[]
-  stepCount: number
-  visited: boolean[][]
-}
-
-export const DEFAULT_MAZE_DIMENSIONS: MazeDimensions = {
-  columns: 20,
-  rows: 20,
-}
-
-const DIRECTION_OFFSETS: Record<Direction, { dx: number; dy: number }> = {
-  top: { dx: 0, dy: -1 },
-  right: { dx: 1, dy: 0 },
-  bottom: { dx: 0, dy: 1 },
-  left: { dx: -1, dy: 0 },
-}
-
-const OPPOSITE_DIRECTION: Record<Direction, Direction> = {
-  top: 'bottom',
-  right: 'left',
-  bottom: 'top',
-  left: 'right',
-}
-
-function createInitialGrid(dimensions: MazeDimensions): MazeData {
-  return Array.from({ length: dimensions.rows }, (_, y) =>
-    Array.from({ length: dimensions.columns }, (_, x): MazeCell => ({
-      kind:
-        y === 0 && x === 0
-          ? 'start'
-          : y === dimensions.rows - 1 && x === dimensions.columns - 1
-            ? 'goal'
-            : undefined,
-      walls: {
-        top: true,
-        right: true,
-        bottom: true,
-        left: true,
-      },
-    })),
-  )
-}
-
-function shuffleDirections(): Direction[] {
-  const directions: Direction[] = ['top', 'right', 'bottom', 'left']
-
-  for (let index = directions.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1))
-    const current = directions[index]
-    directions[index] = directions[swapIndex]
-    directions[swapIndex] = current
-  }
-
-  return directions
-}
-
-function isInBounds(x: number, y: number, dimensions: MazeDimensions) {
-  return x >= 0 && x < dimensions.columns && y >= 0 && y < dimensions.rows
-}
-
-function cloneMaze(maze: MazeData): MazeData {
-  return maze.map((row) =>
-    row.map((cell) => ({
-      kind: cell.kind,
-      walls: { ...cell.walls },
-    })),
-  )
-}
-
-function cloneVisited(visited: boolean[][]): boolean[][] {
-  return visited.map((row) => [...row])
-}
-
-function createVisitedGrid(dimensions: MazeDimensions): boolean[][] {
-  return Array.from({ length: dimensions.rows }, () =>
-    Array.from({ length: dimensions.columns }, () => false),
-  )
-}
+export const MAZE_ALGORITHM_OPTIONS: Array<{
+  label: string
+  value: MazeAlgorithm
+}> = [
+  { label: 'Prim法', value: 'prim' },
+  { label: '穴掘り法', value: 'digging' },
+  { label: '棒倒し法', value: 'stickFalling' },
+  { label: '壁埋め法', value: 'wallFilling' },
+  { label: '壁伸ばし法', value: 'wallExtending' },
+]
 
 export function createMazeGenerationState(
   dimensions: MazeDimensions = DEFAULT_MAZE_DIMENSIONS,
+  algorithm: MazeAlgorithm = 'digging',
 ): MazeGenerationState {
-  const maze = createInitialGrid(dimensions)
-  const visited = createVisitedGrid(dimensions)
-
-  visited[0][0] = true
-
-  return {
-    currentCell: { x: 0, y: 0 },
-    dimensions,
-    isComplete: false,
-    maze,
-    stack: [{ x: 0, y: 0, directions: shuffleDirections() }],
-    stepCount: 0,
-    visited,
+  if (algorithm === 'prim') {
+    return createPrimState(dimensions)
   }
+
+  if (algorithm === 'stickFalling') {
+    return createStickFallingState(dimensions)
+  }
+
+  if (algorithm === 'wallFilling') {
+    return createWallFillingState(dimensions)
+  }
+
+  if (algorithm === 'wallExtending') {
+    return createWallExtendingState(dimensions)
+  }
+
+  return createDiggingState(dimensions)
 }
 
 export function stepMazeGeneration(
   state: MazeGenerationState,
 ): MazeGenerationState {
-  if (state.isComplete) {
-    return state
+  if (state.algorithm === 'prim') {
+    return stepPrimMazeGeneration(state)
   }
 
-  const maze = cloneMaze(state.maze)
-  const visited = cloneVisited(state.visited)
-  const stack = state.stack.map((entry) => ({
-    ...entry,
-    directions: [...entry.directions],
-  }))
-
-  while (stack.length > 0) {
-    const current = stack[stack.length - 1]
-
-    while (current.directions.length > 0) {
-      const direction = current.directions.pop() as Direction
-      const { dx, dy } = DIRECTION_OFFSETS[direction]
-      const nextX = current.x + dx
-      const nextY = current.y + dy
-
-      if (!isInBounds(nextX, nextY, state.dimensions) || visited[nextY][nextX]) {
-        continue
-      }
-
-      maze[current.y][current.x].walls[direction] = false
-      maze[nextY][nextX].walls[OPPOSITE_DIRECTION[direction]] = false
-      visited[nextY][nextX] = true
-      stack.push({
-        x: nextX,
-        y: nextY,
-        directions: shuffleDirections(),
-      })
-
-      return {
-        currentCell: { x: nextX, y: nextY },
-        dimensions: state.dimensions,
-        isComplete: false,
-        maze,
-        stack,
-        stepCount: state.stepCount + 1,
-        visited,
-      }
-    }
-
-    stack.pop()
-
-    return {
-      currentCell:
-        stack.length > 0
-          ? { x: stack[stack.length - 1].x, y: stack[stack.length - 1].y }
-          : null,
-      dimensions: state.dimensions,
-      isComplete: stack.length === 0,
-      maze,
-      stack,
-      stepCount: state.stepCount + 1,
-      visited,
-    }
+  if (state.algorithm === 'stickFalling') {
+    return stepStickFallingMazeGeneration(state)
   }
 
-  return {
-    ...state,
-    currentCell: null,
-    isComplete: true,
+  if (state.algorithm === 'wallFilling') {
+    return stepWallFillingMazeGeneration(state)
   }
+
+  if (state.algorithm === 'wallExtending') {
+    return stepWallExtendingMazeGeneration(state)
+  }
+
+  return stepDiggingMazeGeneration(state)
 }
 
 export function completeMazeGeneration(
@@ -232,9 +130,13 @@ export function toggleMazeWall(
     ...state,
     currentCell: null,
     isComplete: true,
+    extensionSegments: [],
     maze,
+    pendingPillars: [],
+    pendingWalls: [],
     stack: [],
     visited,
+    wallGrid: null,
   }
 }
 
@@ -260,8 +162,12 @@ export function setMazeCellKind(
     ...state,
     currentCell: null,
     isComplete: true,
+    extensionSegments: [],
     maze,
+    pendingPillars: [],
+    pendingWalls: [],
     stack: [],
     visited,
+    wallGrid: null,
   }
 }

@@ -17,6 +17,16 @@
     "columns": "横",
     "rows": "縦"
   },
+  "algorithm": {
+    "label": "生成方式",
+    "options": {
+      "prim": "Prim法",
+      "digging": "穴掘り法",
+      "stickFalling": "棒倒し法",
+      "wallFilling": "壁埋め法",
+      "wallExtending": "壁伸ばし法"
+    }
+  },
   "edit": {
     "hint": "迷路をクリックします。",
     "modes": {
@@ -26,6 +36,7 @@
     }
   },
   "status": {
+    "algorithm": "algorithm",
     "dimensions": "size",
     "steps": "steps",
     "playing": "playing",
