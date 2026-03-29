@@ -8,6 +8,10 @@ import {
   stepWallFillingMazeGeneration,
 } from './mazeGenerator.wallFilling'
 import {
+  createWallExtendingState,
+  stepWallExtendingMazeGeneration,
+} from './mazeGenerator.wallExtending'
+import {
   cloneMaze,
   createVisitedGrid,
   DEFAULT_MAZE_DIMENSIONS,
@@ -35,6 +39,7 @@ export const MAZE_ALGORITHM_OPTIONS: Array<{
   { label: '穴掘り法', value: 'digging' },
   { label: '棒倒し法', value: 'stickFalling' },
   { label: '壁埋め法', value: 'wallFilling' },
+  { label: '壁伸ばし法', value: 'wallExtending' },
 ]
 
 export function createMazeGenerationState(
@@ -49,6 +54,10 @@ export function createMazeGenerationState(
     return createWallFillingState(dimensions)
   }
 
+  if (algorithm === 'wallExtending') {
+    return createWallExtendingState(dimensions)
+  }
+
   return createDiggingState(dimensions)
 }
 
@@ -61,6 +70,10 @@ export function stepMazeGeneration(
 
   if (state.algorithm === 'wallFilling') {
     return stepWallFillingMazeGeneration(state)
+  }
+
+  if (state.algorithm === 'wallExtending') {
+    return stepWallExtendingMazeGeneration(state)
   }
 
   return stepDiggingMazeGeneration(state)
@@ -107,6 +120,7 @@ export function toggleMazeWall(
     ...state,
     currentCell: null,
     isComplete: true,
+    extensionSegments: [],
     maze,
     pendingPillars: [],
     pendingWalls: [],
@@ -138,6 +152,7 @@ export function setMazeCellKind(
     ...state,
     currentCell: null,
     isComplete: true,
+    extensionSegments: [],
     maze,
     pendingPillars: [],
     pendingWalls: [],

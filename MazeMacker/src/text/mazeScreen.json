@@ -22,7 +22,8 @@
     "options": {
       "digging": "穴掘り法",
       "stickFalling": "棒倒し法",
-      "wallFilling": "壁埋め法"
+      "wallFilling": "壁埋め法",
+      "wallExtending": "壁伸ばし法"
     }
   },
   "edit": {

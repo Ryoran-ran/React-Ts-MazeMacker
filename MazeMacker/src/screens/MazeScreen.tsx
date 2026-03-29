@@ -178,7 +178,7 @@ function MazeScreen() {
               : generationState.currentCell
           }
           currentCellSpan={
-            selectedAlgorithm === 'stickFalling'
+            selectedAlgorithm === 'stickFalling' || selectedAlgorithm === 'wallExtending'
               ? { columns: 2, rows: 2 }
               : { columns: 1, rows: 1 }
           }

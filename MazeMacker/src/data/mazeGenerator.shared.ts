@@ -1,4 +1,5 @@
 import { type MazeCell, type MazeData } from '../components/MazeCanvas'
+export type { MazeData }
 
 type Direction = 'top' | 'right' | 'bottom' | 'left'
 export type MazeWallDirection = Direction
@@ -32,7 +33,16 @@ export type PendingWallEntry = {
   to: CellPosition
 }
 
-export type MazeAlgorithm = 'digging' | 'stickFalling' | 'wallFilling'
+export type GridPosition = {
+  x: number
+  y: number
+}
+
+export type MazeAlgorithm =
+  | 'digging'
+  | 'stickFalling'
+  | 'wallFilling'
+  | 'wallExtending'
 
 export type MazeGenerationState = {
   algorithm: MazeAlgorithm
@@ -40,6 +50,7 @@ export type MazeGenerationState = {
   dimensions: MazeDimensions
   isComplete: boolean
   maze: MazeData
+  extensionSegments: GridPosition[]
   pendingPillars: PillarEntry[]
   pendingWalls: PendingWallEntry[]
   stack: StackEntry[]
