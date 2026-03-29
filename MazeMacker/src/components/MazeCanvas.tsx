@@ -175,10 +175,11 @@ function MazeCanvas({
               p.textAlign(p.CENTER, p.CENTER)
               p.textSize(Math.max(12, responsiveCellSize * 0.55))
               p.textStyle(p.BOLD)
+              const textYOffset = responsiveCellSize * 0.06
               p.text(
                 cell.kind === 'start' ? 'S' : 'G',
                 drawX + responsiveCellSize / 2,
-                drawY + responsiveCellSize / 2,
+                drawY + responsiveCellSize / 2 + textYOffset,
               )
             }
 
