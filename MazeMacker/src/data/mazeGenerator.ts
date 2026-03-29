@@ -1,12 +1,15 @@
 import { type MazeCell, type MazeData } from '../components/MazeCanvas'
 
-const GRID_SIZE = 20
-
 type Direction = 'top' | 'right' | 'bottom' | 'left'
 
 type CellPosition = {
   x: number
   y: number
+}
+
+export type MazeDimensions = {
+  columns: number
+  rows: number
 }
 
 type StackEntry = CellPosition & {
@@ -15,11 +18,17 @@ type StackEntry = CellPosition & {
 
 export type MazeGenerationState = {
   currentCell: CellPosition | null
+  dimensions: MazeDimensions
   isComplete: boolean
   maze: MazeData
   stack: StackEntry[]
   stepCount: number
   visited: boolean[][]
+}
+
+export const DEFAULT_MAZE_DIMENSIONS: MazeDimensions = {
+  columns: 20,
+  rows: 20,
 }
 
 const DIRECTION_OFFSETS: Record<Direction, { dx: number; dy: number }> = {
@@ -36,13 +45,13 @@ const OPPOSITE_DIRECTION: Record<Direction, Direction> = {
   left: 'right',
 }
 
-function createInitialGrid(): MazeData {
-  return Array.from({ length: GRID_SIZE }, (_, y) =>
-    Array.from({ length: GRID_SIZE }, (_, x): MazeCell => ({
+function createInitialGrid(dimensions: MazeDimensions): MazeData {
+  return Array.from({ length: dimensions.rows }, (_, y) =>
+    Array.from({ length: dimensions.columns }, (_, x): MazeCell => ({
       kind:
         y === 0 && x === 0
           ? 'start'
-          : y === GRID_SIZE - 1 && x === GRID_SIZE - 1
+          : y === dimensions.rows - 1 && x === dimensions.columns - 1
             ? 'goal'
             : undefined,
       walls: {
@@ -68,8 +77,8 @@ function shuffleDirections(): Direction[] {
   return directions
 }
 
-function isInBounds(x: number, y: number) {
-  return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE
+function isInBounds(x: number, y: number, dimensions: MazeDimensions) {
+  return x >= 0 && x < dimensions.columns && y >= 0 && y < dimensions.rows
 }
 
 function cloneMaze(maze: MazeData): MazeData {
@@ -85,16 +94,19 @@ function cloneVisited(visited: boolean[][]): boolean[][] {
   return visited.map((row) => [...row])
 }
 
-export function createMazeGenerationState(): MazeGenerationState {
-  const maze = createInitialGrid()
-  const visited = Array.from({ length: GRID_SIZE }, () =>
-    Array.from({ length: GRID_SIZE }, () => false),
+export function createMazeGenerationState(
+  dimensions: MazeDimensions = DEFAULT_MAZE_DIMENSIONS,
+): MazeGenerationState {
+  const maze = createInitialGrid(dimensions)
+  const visited = Array.from({ length: dimensions.rows }, () =>
+    Array.from({ length: dimensions.columns }, () => false),
   )
 
   visited[0][0] = true
 
   return {
     currentCell: { x: 0, y: 0 },
+    dimensions,
     isComplete: false,
     maze,
     stack: [{ x: 0, y: 0, directions: shuffleDirections() }],
@@ -126,7 +138,7 @@ export function stepMazeGeneration(
       const nextX = current.x + dx
       const nextY = current.y + dy
 
-      if (!isInBounds(nextX, nextY) || visited[nextY][nextX]) {
+      if (!isInBounds(nextX, nextY, state.dimensions) || visited[nextY][nextX]) {
         continue
       }
 
@@ -141,6 +153,7 @@ export function stepMazeGeneration(
 
       return {
         currentCell: { x: nextX, y: nextY },
+        dimensions: state.dimensions,
         isComplete: false,
         maze,
         stack,
@@ -156,6 +169,7 @@ export function stepMazeGeneration(
         stack.length > 0
           ? { x: stack[stack.length - 1].x, y: stack[stack.length - 1].y }
           : null,
+      dimensions: state.dimensions,
       isComplete: stack.length === 0,
       maze,
       stack,

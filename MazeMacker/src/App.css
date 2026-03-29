@@ -67,12 +67,69 @@
   gap: 24px;
 }
 
+.app__tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: #eef2f7;
+  align-self: start;
+}
+
+.app__tab {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.app__tab--active {
+  color: #ffffff;
+  background: #111827;
+}
+
 .app__controls {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
   gap: 12px;
+}
+
+.app__sizeFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app__field {
+  display: grid;
+  gap: 6px;
+}
+
+.app__fieldLabel {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-h);
+  text-align: left;
+}
+
+.app__input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg);
 }
 
 .app__button {
@@ -151,5 +208,9 @@
 
   .app__description {
     margin: 0 auto;
+  }
+
+  .app__sizeFields {
+    grid-template-columns: 1fr;
   }
 }
