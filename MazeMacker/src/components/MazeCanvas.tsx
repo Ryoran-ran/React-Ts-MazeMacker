@@ -16,6 +16,7 @@ export type MazeCell = {
 export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
 export type MazeEditMode = 'goal' | 'start' | 'wall'
+type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 
 type CellPosition = {
   x: number
@@ -27,15 +28,32 @@ type CellSpan = {
   rows: number
 }
 
+type RevealedWall = {
+  direction: MazeWallDirection
+  x: number
+  y: number
+}
+
+type BumpState = {
+  direction: MazeWallDirection
+  tick: number
+}
+
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
+  bumpState?: BumpState | null
+  currentFacingDirection?: MazeWallDirection | null
+  showVisitedWalls?: boolean
+  showWalls?: boolean
+  playHandGuideMode?: PlayHandGuideMode
   wallColor?: string
   backgroundColor?: string
   currentCell?: CellPosition | null
   currentCellSpan?: CellSpan
   path?: boolean[][]
   openSet?: boolean[][]
+  revealedWalls?: RevealedWall[]
   visited?: boolean[][]
   editable?: boolean
   editMode?: MazeEditMode
@@ -46,12 +64,18 @@ type MazeCanvasProps = {
 function MazeCanvas({
   maze,
   cellSize = 24,
+  bumpState = null,
+  currentFacingDirection = null,
+  showVisitedWalls = false,
+  showWalls = true,
+  playHandGuideMode = 'hidden',
   wallColor = '#111827',
   backgroundColor = '#ffffff',
   currentCell = null,
   currentCellSpan = { columns: 1, rows: 1 },
   path,
   openSet,
+  revealedWalls = [],
   visited,
   editable = false,
   editMode = 'wall',
@@ -59,11 +83,23 @@ function MazeCanvas({
   onWallToggle,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<p5 | null>(null)
+  const bumpAnimationRef = useRef<number | null>(null)
+  const bumpDirectionRef = useRef<MazeWallDirection | null>(null)
+  const bumpProgressRef = useRef(0)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
   const rowCount = maze.length
   const columnCount = maze[0]?.length ?? 0
+
+  useEffect(() => {
+    return () => {
+      if (bumpAnimationRef.current !== null) {
+        window.cancelAnimationFrame(bumpAnimationRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -94,13 +130,72 @@ function MazeCanvas({
       throw new Error('maze rows must all have the same length')
     }
 
-    if (!containerRef.current || containerSize.width === 0 || containerSize.height === 0) {
+    if (
+      !containerRef.current ||
+      !stageRef.current ||
+      containerSize.width === 0 ||
+      containerSize.height === 0
+    ) {
       return
     }
 
     instanceRef.current?.remove()
 
     const sketch = (p: p5) => {
+      function getHandDirection(
+        facingDirection: MazeWallDirection,
+        handGuideMode: PlayHandGuideMode,
+      ): MazeWallDirection {
+        if (handGuideMode === 'right') {
+          if (facingDirection === 'top') {
+            return 'right'
+          }
+          if (facingDirection === 'right') {
+            return 'bottom'
+          }
+          if (facingDirection === 'bottom') {
+            return 'left'
+          }
+
+          return 'top'
+        }
+
+        if (facingDirection === 'top') {
+          return 'left'
+        }
+        if (facingDirection === 'right') {
+          return 'top'
+        }
+        if (facingDirection === 'bottom') {
+          return 'right'
+        }
+
+        return 'bottom'
+      }
+
+      function getDirectionMarkerPosition(
+        drawX: number,
+        drawY: number,
+        responsiveCellSize: number,
+        direction: MazeWallDirection,
+      ) {
+        const markerInset = responsiveCellSize * 0.22
+        let markerX = drawX + responsiveCellSize / 2
+        let markerY = drawY + responsiveCellSize / 2
+
+        if (direction === 'top') {
+          markerY = drawY + markerInset
+        } else if (direction === 'right') {
+          markerX = drawX + responsiveCellSize - markerInset
+        } else if (direction === 'bottom') {
+          markerY = drawY + responsiveCellSize - markerInset
+        } else {
+          markerX = drawX + markerInset
+        }
+
+        return { markerX, markerY }
+      }
+
       const responsiveCellSize = Math.max(
         4,
         Math.floor(
@@ -160,6 +255,40 @@ function MazeCanvas({
       p.draw = () => {
         p.background(backgroundColor)
 
+        const revealedWallSet = new Set(
+          revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
+        )
+
+        function hasVisitedWallNeighbor(x: number, y: number, direction: MazeWallDirection) {
+          if (!showVisitedWalls || !visited) {
+            return false
+          }
+
+          if (visited[y]?.[x]) {
+            return true
+          }
+
+          if (direction === 'top') {
+            return y > 0 && Boolean(visited[y - 1]?.[x])
+          }
+          if (direction === 'right') {
+            return x < columnCount - 1 && Boolean(visited[y]?.[x + 1])
+          }
+          if (direction === 'bottom') {
+            return y < rowCount - 1 && Boolean(visited[y + 1]?.[x])
+          }
+
+          return x > 0 && Boolean(visited[y]?.[x - 1])
+        }
+
+        function shouldDrawWall(x: number, y: number, direction: MazeWallDirection) {
+          return (
+            showWalls ||
+            revealedWallSet.has(`${x}:${y}:${direction}`) ||
+            hasVisitedWallNeighbor(x, y, direction)
+          )
+        }
+
         for (let y = 0; y < rowCount; y += 1) {
           for (let x = 0; x < columnCount; x += 1) {
             const cell = maze[y][x]
@@ -194,7 +323,55 @@ function MazeCanvas({
             if (isCurrentCellHighlighted) {
               p.noStroke()
               p.fill('#f59e0b')
-              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+              const horizontalBump =
+                bumpDirectionRef.current === 'left' || bumpDirectionRef.current === 'right'
+              const stretch = bumpProgressRef.current * responsiveCellSize * 0.18
+              const currentWidth = horizontalBump
+                ? responsiveCellSize - stretch
+                : responsiveCellSize + stretch * 0.75
+              const currentHeight = horizontalBump
+                ? responsiveCellSize + stretch * 0.75
+                : responsiveCellSize - stretch
+              const currentOffsetX = -(currentWidth - responsiveCellSize) / 2
+              const currentOffsetY = -(currentHeight - responsiveCellSize) / 2
+
+              p.rect(
+                drawX + currentOffsetX,
+                drawY + currentOffsetY,
+                currentWidth,
+                currentHeight,
+              )
+
+              if (currentFacingDirection) {
+                const frontMarker = getDirectionMarkerPosition(
+                  drawX,
+                  drawY,
+                  responsiveCellSize,
+                  currentFacingDirection,
+                )
+
+                p.noStroke()
+                p.fill('#ffffff')
+                p.circle(frontMarker.markerX, frontMarker.markerY, Math.max(5, responsiveCellSize * 0.18))
+              }
+
+              if (playHandGuideMode !== 'hidden' && currentFacingDirection) {
+                const handDirection = getHandDirection(
+                  currentFacingDirection,
+                  playHandGuideMode,
+                )
+                const markerDiameter = Math.max(6, responsiveCellSize * 0.24)
+                const handMarker = getDirectionMarkerPosition(
+                  drawX,
+                  drawY,
+                  responsiveCellSize,
+                  handDirection,
+                )
+
+                p.noStroke()
+                p.fill(playHandGuideMode === 'right' ? '#dc2626' : '#2563eb')
+                p.circle(handMarker.markerX, handMarker.markerY, markerDiameter)
+              }
             }
 
             if (cell.kind === 'start' || cell.kind === 'goal') {
@@ -217,10 +394,10 @@ function MazeCanvas({
             p.strokeWeight(2)
             p.noFill()
 
-            if (cell.walls.top) {
+            if (cell.walls.top && shouldDrawWall(x, y, 'top')) {
               p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
             }
-            if (cell.walls.right) {
+            if (cell.walls.right && shouldDrawWall(x, y, 'right')) {
               p.line(
                 drawX + responsiveCellSize,
                 drawY,
@@ -228,7 +405,7 @@ function MazeCanvas({
                 drawY + responsiveCellSize,
               )
             }
-            if (cell.walls.bottom) {
+            if (cell.walls.bottom && shouldDrawWall(x, y, 'bottom')) {
               p.line(
                 drawX,
                 drawY + responsiveCellSize,
@@ -236,7 +413,7 @@ function MazeCanvas({
                 drawY + responsiveCellSize,
               )
             }
-            if (cell.walls.left) {
+            if (cell.walls.left && shouldDrawWall(x, y, 'left')) {
               p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
             }
           }
@@ -254,7 +431,7 @@ function MazeCanvas({
       }
     }
 
-    instanceRef.current = new p5(sketch, containerRef.current)
+    instanceRef.current = new p5(sketch, stageRef.current)
 
     return () => {
       instanceRef.current?.remove()
@@ -269,6 +446,7 @@ function MazeCanvas({
     currentCell,
     currentCellSpan.columns,
     currentCellSpan.rows,
+    currentFacingDirection,
     editMode,
     editable,
     maze,
@@ -276,16 +454,58 @@ function MazeCanvas({
     onWallToggle,
     openSet,
     path,
+    playHandGuideMode,
+    revealedWalls,
     rowCount,
+    showVisitedWalls,
+    showWalls,
     visited,
     wallColor,
   ])
+
+  useEffect(() => {
+    if (!bumpState) {
+      return
+    }
+
+    if (bumpAnimationRef.current !== null) {
+      window.cancelAnimationFrame(bumpAnimationRef.current)
+    }
+
+    const durationMs = 140
+    const startTime = performance.now()
+    bumpDirectionRef.current = bumpState.direction
+
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - startTime
+      const progress = Math.min(1, elapsed / durationMs)
+      bumpProgressRef.current = Math.sin(progress * Math.PI)
+      instanceRef.current?.redraw()
+
+      if (progress < 1) {
+        bumpAnimationRef.current = window.requestAnimationFrame(animate)
+        return
+      }
+
+      bumpProgressRef.current = 0
+      bumpDirectionRef.current = null
+      instanceRef.current?.redraw()
+      bumpAnimationRef.current = null
+    }
+
+    bumpAnimationRef.current = window.requestAnimationFrame(animate)
+  }, [bumpState])
 
   return (
     <div
       ref={containerRef}
       className={`maze-canvas ${editable ? 'maze-canvas--editable' : ''}`}
-    />
+    >
+      <div
+        ref={stageRef}
+        className="maze-canvas__stage"
+      />
+    </div>
   )
 }
 
