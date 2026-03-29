@@ -1,8 +1,7 @@
 {
   "title": "Maze Renderer",
   "tabs": {
-    "controls": "操作",
-    "settings": "設定",
+    "controls": "迷路",
     "edit": "編集",
     "search": "探索",
     "play": "遊ぶ"
