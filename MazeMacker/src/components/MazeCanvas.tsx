@@ -42,6 +42,7 @@ type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
   bumpState?: BumpState | null
+  showVisitedWalls?: boolean
   showWalls?: boolean
   wallColor?: string
   backgroundColor?: string
@@ -61,6 +62,7 @@ function MazeCanvas({
   maze,
   cellSize = 24,
   bumpState = null,
+  showVisitedWalls = false,
   showWalls = true,
   wallColor = '#111827',
   backgroundColor = '#ffffff',
@@ -198,8 +200,34 @@ function MazeCanvas({
           revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
         )
 
+        function hasVisitedWallNeighbor(x: number, y: number, direction: MazeWallDirection) {
+          if (!showVisitedWalls || !visited) {
+            return false
+          }
+
+          if (visited[y]?.[x]) {
+            return true
+          }
+
+          if (direction === 'top') {
+            return y > 0 && Boolean(visited[y - 1]?.[x])
+          }
+          if (direction === 'right') {
+            return x < columnCount - 1 && Boolean(visited[y]?.[x + 1])
+          }
+          if (direction === 'bottom') {
+            return y < rowCount - 1 && Boolean(visited[y + 1]?.[x])
+          }
+
+          return x > 0 && Boolean(visited[y]?.[x - 1])
+        }
+
         function shouldDrawWall(x: number, y: number, direction: MazeWallDirection) {
-          return showWalls || revealedWallSet.has(`${x}:${y}:${direction}`)
+          return (
+            showWalls ||
+            revealedWallSet.has(`${x}:${y}:${direction}`) ||
+            hasVisitedWallNeighbor(x, y, direction)
+          )
         }
 
         for (let y = 0; y < rowCount; y += 1) {
@@ -337,6 +365,7 @@ function MazeCanvas({
     path,
     revealedWalls,
     rowCount,
+    showVisitedWalls,
     showWalls,
     visited,
     wallColor,

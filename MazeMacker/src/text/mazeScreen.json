@@ -55,9 +55,10 @@
   "play": {
     "generate": "迷路生成",
     "hint": "矢印キーまたは WASD で移動します。",
-    "hitWallHidden": "見せない",
-    "hitWallLabel": "ぶつかった壁",
-    "hitWallVisible": "見せる",
+    "discoveredWallBumpOnly": "ぶつかった壁のみ",
+    "discoveredWallHidden": "表示しない",
+    "discoveredWallLabel": "壁の表示方法",
+    "discoveredWallVisited": "通った場所の壁",
     "steps": "play steps",
     "solved": "solved",
     "wallHidden": "隠す",

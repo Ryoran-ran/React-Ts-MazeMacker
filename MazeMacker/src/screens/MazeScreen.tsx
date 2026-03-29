@@ -29,6 +29,7 @@ import mazeScreenText from '../text/mazeScreen.json'
 const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
 type SidebarTab = 'controls' | 'settings' | 'edit' | 'play' | 'search'
+type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
 type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
 type RevealedWall = {
   direction: MazeWallDirection
@@ -171,7 +172,8 @@ function MazeScreen() {
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
-  const [showHitWallsInPlay, setShowHitWallsInPlay] = useState(true)
+  const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
+    useState<PlayWallDiscoveryMode>('visited')
   const [showWallsInPlay, setShowWallsInPlay] = useState(true)
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
@@ -421,7 +423,7 @@ function MazeScreen() {
           tick: (currentState?.tick ?? 0) + 1,
         }))
 
-        if (!showHitWallsInPlay) {
+        if (playWallDiscoveryMode === 'hidden') {
           return currentState
         }
 
@@ -562,6 +564,7 @@ function MazeScreen() {
             bumpState={playerBumpState}
             maze={generationState.maze}
             revealedWalls={playerState.revealedWalls}
+            showVisitedWalls={playWallDiscoveryMode === 'visited'}
             showWalls={showWallsInPlay}
             visited={playerState.visited}
             currentCell={playerState.position}
@@ -859,21 +862,32 @@ function MazeScreen() {
                 </div>
               </div>
               <div className="app__field">
-                <span className="app__fieldLabel">{mazeScreenText.play.hitWallLabel}</span>
-                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Hit wall settings">
+                <span className="app__fieldLabel">{mazeScreenText.play.discoveredWallLabel}</span>
+                <div
+                  className="app__tabs app__tabs--stacked"
+                  role="tablist"
+                  aria-label="Discovered wall settings"
+                >
                   <button
-                    className={`app__tab ${showHitWallsInPlay ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${playWallDiscoveryMode === 'bumpOnly' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setShowHitWallsInPlay(true)}
+                    onClick={() => setPlayWallDiscoveryMode('bumpOnly')}
                   >
-                    {mazeScreenText.play.hitWallVisible}
+                    {mazeScreenText.play.discoveredWallBumpOnly}
                   </button>
                   <button
-                    className={`app__tab ${!showHitWallsInPlay ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${playWallDiscoveryMode === 'visited' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setShowHitWallsInPlay(false)}
+                    onClick={() => setPlayWallDiscoveryMode('visited')}
                   >
-                    {mazeScreenText.play.hitWallHidden}
+                    {mazeScreenText.play.discoveredWallVisited}
+                  </button>
+                  <button
+                    className={`app__tab ${playWallDiscoveryMode === 'hidden' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayWallDiscoveryMode('hidden')}
+                  >
+                    {mazeScreenText.play.discoveredWallHidden}
                   </button>
                 </div>
               </div>

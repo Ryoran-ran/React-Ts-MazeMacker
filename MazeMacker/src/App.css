@@ -106,6 +106,15 @@
   margin-top: -2px;
 }
 
+.app__tabs--stacked {
+  grid-template-columns: 1fr;
+}
+
+.app__tabs--stacked .app__tab {
+  padding: 10px 12px;
+  text-align: left;
+}
+
 .app__controls {
   display: flex;
   flex-direction: column;
