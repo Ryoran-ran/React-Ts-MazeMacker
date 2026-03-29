@@ -66,6 +66,7 @@ function createSearchStateMap(
   return {
     astar: createMazeSearchState(maze, 'astar'),
     bfs: createMazeSearchState(maze, 'bfs'),
+    deadEndFilling: createMazeSearchState(maze, 'deadEndFilling'),
     dfs: createMazeSearchState(maze, 'dfs'),
     leftHand: createMazeSearchState(maze, 'leftHand'),
     rightHand: createMazeSearchState(maze, 'rightHand'),
@@ -802,7 +803,7 @@ function MazeScreen() {
                   {mazeScreenText.search.algorithmLabel}
                 </span>
                 <div
-                  className="app__tabs app__tabs--search"
+                  className="app__tabs app__tabs--stacked"
                   role="tablist"
                   aria-label="Search algorithms"
                 >

@@ -11,7 +11,13 @@ export type SearchNode = {
   position: CellPosition
 }
 
-export type MazeSearchAlgorithm = 'astar' | 'bfs' | 'dfs' | 'leftHand' | 'rightHand'
+export type MazeSearchAlgorithm =
+  | 'astar'
+  | 'bfs'
+  | 'deadEndFilling'
+  | 'dfs'
+  | 'leftHand'
+  | 'rightHand'
 
 export type MazeSearchState = {
   algorithm: MazeSearchAlgorithm
@@ -38,6 +44,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
 }> = [
   { label: 'A*探索', value: 'astar' },
   { label: 'ダイクストラ法', value: 'bfs' },
+  { label: 'Dead-End Filling', value: 'deadEndFilling' },
   { label: '深さ優先探索', value: 'dfs' },
   { label: '左手探索法', value: 'leftHand' },
   { label: '右手探索法', value: 'rightHand' },
@@ -181,6 +188,22 @@ export function getInitialDirection(maze: MazeData, start: CellPosition): MazeWa
   return 'right'
 }
 
+function countOpenNeighbors(maze: MazeData, position: CellPosition) {
+  let count = 0
+
+  for (const direction of SEARCH_DIRECTIONS) {
+    if (maze[position.y][position.x].walls[direction]) {
+      continue
+    }
+
+    if (getCellNeighbor(maze, position, direction)) {
+      count += 1
+    }
+  }
+
+  return count
+}
+
 export function createMazeSearchState(
   maze: MazeData,
   algorithm: MazeSearchAlgorithm = 'bfs',
@@ -195,7 +218,26 @@ export function createMazeSearchState(
   const parents = createParentGrid(maze)
   const costs = createCostGrid(maze)
 
-  openSet[start.y][start.x] = algorithm === 'rightHand' || algorithm === 'leftHand'
+  const isWallFollower = algorithm === 'rightHand' || algorithm === 'leftHand'
+  const frontier =
+    algorithm === 'deadEndFilling'
+      ? maze.flatMap((row, y) =>
+          row.flatMap((_, x) => {
+            if (
+              (x === start.x && y === start.y) ||
+              (x === goal.x && y === goal.y) ||
+              countOpenNeighbors(maze, { x, y }) > 1
+            ) {
+              return []
+            }
+
+            openSet[y][x] = true
+            return [{ cost: 0, parent: null, position: { x, y } }]
+          }),
+        )
+      : [{ cost: 0, parent: null, position: start }]
+
+  openSet[start.y][start.x] = isWallFollower
   costs[start.y][start.x] = 0
 
   if (start.x === goal.x && start.y === goal.y) {
@@ -226,9 +268,9 @@ export function createMazeSearchState(
   return {
     algorithm,
     costs,
-    currentCell: algorithm === 'rightHand' || algorithm === 'leftHand' ? start : null,
+    currentCell: isWallFollower ? start : null,
     currentDirection,
-    frontier: [{ cost: 0, parent: null, position: start }],
+    frontier,
     isComplete: false,
     isSolved: false,
     maze,
