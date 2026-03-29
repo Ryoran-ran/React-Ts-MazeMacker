@@ -6,19 +6,22 @@ type CellPosition = {
 }
 
 type SearchNode = {
+  cost: number
   parent: CellPosition | null
   position: CellPosition
 }
 
-export type MazeSearchAlgorithm = 'bfs' | 'dfs'
+export type MazeSearchAlgorithm = 'astar' | 'bfs' | 'dfs'
 
 export type MazeSearchState = {
   algorithm: MazeSearchAlgorithm
+  costs: number[][]
   currentCell: CellPosition | null
   frontier: SearchNode[]
   isComplete: boolean
   isSolved: boolean
   maze: MazeData
+  openSet: boolean[][]
   parents: Array<Array<CellPosition | null>>
   path: boolean[][]
   stepCount: number
@@ -31,6 +34,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   label: string
   value: MazeSearchAlgorithm
 }> = [
+  { label: 'A*探索', value: 'astar' },
   { label: '幅優先探索', value: 'bfs' },
   { label: '深さ優先探索', value: 'dfs' },
 ]
@@ -43,6 +47,10 @@ function createBooleanGrid(maze: MazeData) {
 
 function createParentGrid(maze: MazeData) {
   return maze.map((row) => row.map(() => null as CellPosition | null))
+}
+
+function createCostGrid(maze: MazeData) {
+  return maze.map((row) => row.map(() => Number.POSITIVE_INFINITY))
 }
 
 function shuffleDirections() {
@@ -110,6 +118,44 @@ function buildPathGrid(
   return path
 }
 
+function calculateHeuristic(position: CellPosition, goal: CellPosition) {
+  return Math.abs(goal.x - position.x) + Math.abs(goal.y - position.y)
+}
+
+function takeNextNode(state: MazeSearchState, frontier: SearchNode[]) {
+  if (state.algorithm === 'dfs') {
+    return frontier.pop()
+  }
+
+  if (state.algorithm === 'bfs') {
+    return frontier.shift()
+  }
+
+  while (frontier.length > 0) {
+    let bestIndex = 0
+    let bestScore =
+      frontier[0].cost + calculateHeuristic(frontier[0].position, state.goal)
+
+    for (let index = 1; index < frontier.length; index += 1) {
+      const score =
+        frontier[index].cost + calculateHeuristic(frontier[index].position, state.goal)
+
+      if (score < bestScore) {
+        bestIndex = index
+        bestScore = score
+      }
+    }
+
+    const [candidate] = frontier.splice(bestIndex, 1)
+
+    if (candidate.cost <= state.costs[candidate.position.y][candidate.position.x]) {
+      return candidate
+    }
+  }
+
+  return undefined
+}
+
 export function createMazeSearchState(
   maze: MazeData,
   algorithm: MazeSearchAlgorithm = 'bfs',
@@ -119,21 +165,27 @@ export function createMazeSearchState(
     findCellByKind(maze, 'goal') ??
     { x: maze[0].length - 1, y: maze.length - 1 }
   const visited = createBooleanGrid(maze)
+  const openSet = createBooleanGrid(maze)
   const parents = createParentGrid(maze)
+  const costs = createCostGrid(maze)
 
-  visited[start.y][start.x] = true
+  openSet[start.y][start.x] = true
+  costs[start.y][start.x] = 0
 
   if (start.x === goal.x && start.y === goal.y) {
     const path = createBooleanGrid(maze)
     path[start.y][start.x] = true
+    visited[start.y][start.x] = true
 
     return {
       algorithm,
+      costs,
       currentCell: null,
       frontier: [],
       isComplete: true,
       isSolved: true,
       maze,
+      openSet,
       parents,
       path,
       stepCount: 0,
@@ -145,11 +197,13 @@ export function createMazeSearchState(
 
   return {
     algorithm,
+    costs,
     currentCell: null,
-    frontier: [{ parent: null, position: start }],
+    frontier: [{ cost: 0, parent: null, position: start }],
     isComplete: false,
     isSolved: false,
     maze,
+    openSet,
     parents,
     path: createBooleanGrid(maze),
     stepCount: 0,
@@ -165,21 +219,26 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
   }
 
   const frontier = [...state.frontier]
+  const openSet = state.openSet.map((row) => [...row])
   const visited = state.visited.map((row) => [...row])
   const parents = state.parents.map((row) => [...row])
-  const currentNode =
-    state.algorithm === 'dfs' ? frontier.pop() : frontier.shift()
+  const costs = state.costs.map((row) => [...row])
+  const currentNode = takeNextNode(state, frontier)
 
   if (!currentNode) {
     return {
       ...state,
+      costs,
       currentCell: null,
       frontier: [],
       isComplete: true,
+      openSet,
     }
   }
 
   const current = currentNode.position
+  openSet[current.y][current.x] = false
+  visited[current.y][current.x] = true
 
   if (currentNode.parent && parents[current.y][current.x] === null) {
     parents[current.y][current.x] = currentNode.parent
@@ -188,10 +247,12 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
   if (current.x === state.goal.x && current.y === state.goal.y) {
     return {
       ...state,
+      costs,
       currentCell: null,
       frontier: [],
       isComplete: true,
       isSolved: true,
+      openSet,
       parents,
       path: buildPathGrid(state.maze, parents, state.start, state.goal),
       stepCount: state.stepCount + 1,
@@ -206,13 +267,36 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
 
     const next = getCellNeighbor(state.maze, current, direction)
 
-    if (!next || visited[next.y][next.x]) {
+    if (!next) {
       continue
     }
 
-    visited[next.y][next.x] = true
+    const nextCost = currentNode.cost + 1
+
+    if (state.algorithm === 'astar') {
+      if (nextCost >= costs[next.y][next.x]) {
+        continue
+      }
+
+      costs[next.y][next.x] = nextCost
+      parents[next.y][next.x] = current
+      openSet[next.y][next.x] = true
+      frontier.push({
+        cost: nextCost,
+        parent: current,
+        position: next,
+      })
+      continue
+    }
+
+    if (visited[next.y][next.x]) {
+      continue
+    }
+
+    openSet[next.y][next.x] = true
     parents[next.y][next.x] = current
     frontier.push({
+      cost: nextCost,
       parent: current,
       position: next,
     })
@@ -220,9 +304,11 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
 
   return {
     ...state,
+    costs,
     currentCell: current,
     frontier,
     isComplete: frontier.length === 0,
+    openSet,
     parents,
     stepCount: state.stepCount + 1,
     visited,

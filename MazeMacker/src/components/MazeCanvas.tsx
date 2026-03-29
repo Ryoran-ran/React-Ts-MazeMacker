@@ -35,6 +35,7 @@ type MazeCanvasProps = {
   currentCell?: CellPosition | null
   currentCellSpan?: CellSpan
   path?: boolean[][]
+  openSet?: boolean[][]
   visited?: boolean[][]
   editable?: boolean
   editMode?: MazeEditMode
@@ -50,6 +51,7 @@ function MazeCanvas({
   currentCell = null,
   currentCellSpan = { columns: 1, rows: 1 },
   path,
+  openSet,
   visited,
   editable = false,
   editMode = 'wall',
@@ -164,6 +166,12 @@ function MazeCanvas({
             const drawX = x * responsiveCellSize
             const drawY = y * responsiveCellSize
 
+            if (openSet?.[y]?.[x]) {
+              p.noStroke()
+              p.fill('#fde68a')
+              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+            }
+
             if (visited?.[y]?.[x]) {
               p.noStroke()
               p.fill('#dbeafe')
@@ -266,6 +274,7 @@ function MazeCanvas({
     maze,
     onCellSelect,
     onWallToggle,
+    openSet,
     path,
     rowCount,
     visited,

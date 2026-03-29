@@ -198,13 +198,14 @@
 .app__searchPanel {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(4.75rem, auto) minmax(0, 1fr);
   gap: 8px;
 }
 
 .app__searchPanelHeader {
   display: grid;
   gap: 4px;
+  align-content: start;
 }
 
 .app__searchPanelHeader h2,
@@ -220,6 +221,8 @@
 
 .app__searchPanelHeader p {
   font-size: 0.8125rem;
+  line-height: 1.4;
+  min-height: 2.8em;
   font-weight: 700;
   color: var(--text-h);
 }

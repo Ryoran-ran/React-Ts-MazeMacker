@@ -44,6 +44,7 @@ function createSearchStateMap(
   maze: MazeSearchState['maze'],
 ): SearchStateMap {
   return {
+    astar: createMazeSearchState(maze, 'astar'),
     bfs: createMazeSearchState(maze, 'bfs'),
     dfs: createMazeSearchState(maze, 'dfs'),
   }
@@ -301,6 +302,7 @@ function MazeScreen() {
                   </header>
                   <MazeCanvas
                     maze={generationState.maze}
+                    openSet={searchState.openSet}
                     path={searchState.path}
                     visited={searchState.visited}
                     currentCell={
