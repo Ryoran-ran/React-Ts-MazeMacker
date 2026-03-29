@@ -30,6 +30,7 @@ const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
 type SidebarTab = 'controls' | 'settings' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
+type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
 type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
 type RevealedWall = {
@@ -182,7 +183,8 @@ function MazeScreen() {
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
-  const [showWallsInPlay, setShowWallsInPlay] = useState(true)
+  const [playWallVisibilityMode, setPlayWallVisibilityMode] =
+    useState<PlayWallVisibilityMode>('all')
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -573,15 +575,15 @@ function MazeScreen() {
             <p className="app__playHint">{mazeScreenText.play.hint}</p>
             <MazeCanvas
               bumpState={playerBumpState}
-              currentFacingDirection={playerState.facingDirection}
-              maze={generationState.maze}
-              playHandGuideMode={playHandGuideMode}
-              revealedWalls={playerState.revealedWalls}
-              showVisitedWalls={playWallDiscoveryMode === 'visited'}
-              showWalls={showWallsInPlay}
-              visited={playerState.visited}
-              currentCell={playerState.position}
-              currentCellSpan={{ columns: 1, rows: 1 }}
+            currentFacingDirection={playerState.facingDirection}
+            maze={generationState.maze}
+            playHandGuideMode={playHandGuideMode}
+            playWallVisibilityMode={playWallVisibilityMode}
+            revealedWalls={playerState.revealedWalls}
+            showVisitedWalls={playWallDiscoveryMode === 'visited'}
+            visited={playerState.visited}
+            currentCell={playerState.position}
+            currentCellSpan={{ columns: 1, rows: 1 }}
               cellSize={24}
             />
           </div>
@@ -871,21 +873,28 @@ function MazeScreen() {
               <div className="app__controlsBody">
                 <div className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
-                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Play wall settings">
-                    <button
-                      className={`app__tab ${showWallsInPlay ? 'app__tab--active' : ''}`}
-                      type="button"
-                      onClick={() => setShowWallsInPlay(true)}
-                    >
-                      {mazeScreenText.play.wallVisible}
-                    </button>
-                    <button
-                      className={`app__tab ${!showWallsInPlay ? 'app__tab--active' : ''}`}
-                      type="button"
-                      onClick={() => setShowWallsInPlay(false)}
-                    >
-                      {mazeScreenText.play.wallHidden}
-                    </button>
+                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Play wall settings">
+                  <button
+                    className={`app__tab ${playWallVisibilityMode === 'all' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayWallVisibilityMode('all')}
+                  >
+                    {mazeScreenText.play.wallVisible}
+                  </button>
+                  <button
+                    className={`app__tab ${playWallVisibilityMode === 'nearby' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayWallVisibilityMode('nearby')}
+                  >
+                    {mazeScreenText.play.wallNearby}
+                  </button>
+                  <button
+                    className={`app__tab ${playWallVisibilityMode === 'hidden' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setPlayWallVisibilityMode('hidden')}
+                  >
+                    {mazeScreenText.play.wallHidden}
+                  </button>
                   </div>
                 </div>
                 <div className="app__field">

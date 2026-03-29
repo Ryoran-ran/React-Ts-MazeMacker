@@ -17,6 +17,7 @@ export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
 export type MazeEditMode = 'goal' | 'start' | 'wall'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
+type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 
 type CellPosition = {
   x: number
@@ -44,8 +45,8 @@ type MazeCanvasProps = {
   cellSize?: number
   bumpState?: BumpState | null
   currentFacingDirection?: MazeWallDirection | null
+  playWallVisibilityMode?: PlayWallVisibilityMode
   showVisitedWalls?: boolean
-  showWalls?: boolean
   playHandGuideMode?: PlayHandGuideMode
   wallColor?: string
   backgroundColor?: string
@@ -66,8 +67,8 @@ function MazeCanvas({
   cellSize = 24,
   bumpState = null,
   currentFacingDirection = null,
+  playWallVisibilityMode = 'all',
   showVisitedWalls = false,
-  showWalls = true,
   playHandGuideMode = 'hidden',
   wallColor = '#111827',
   backgroundColor = '#ffffff',
@@ -281,11 +282,40 @@ function MazeCanvas({
           return x > 0 && Boolean(visited[y]?.[x - 1])
         }
 
+        function hasCurrentCellNeighbor(x: number, y: number, direction: MazeWallDirection) {
+          if (playWallVisibilityMode !== 'nearby' || currentCell === null) {
+            return false
+          }
+
+          const isAroundCurrent = (cellX: number, cellY: number) =>
+            cellX >= currentCell.x - 1 &&
+            cellX <= currentCell.x + currentCellSpan.columns &&
+            cellY >= currentCell.y - 1 &&
+            cellY <= currentCell.y + currentCellSpan.rows
+
+          if (isAroundCurrent(x, y)) {
+            return true
+          }
+
+          if (direction === 'top') {
+            return y > 0 && isAroundCurrent(x, y - 1)
+          }
+          if (direction === 'right') {
+            return x < columnCount - 1 && isAroundCurrent(x + 1, y)
+          }
+          if (direction === 'bottom') {
+            return y < rowCount - 1 && isAroundCurrent(x, y + 1)
+          }
+
+          return x > 0 && isAroundCurrent(x - 1, y)
+        }
+
         function shouldDrawWall(x: number, y: number, direction: MazeWallDirection) {
           return (
-            showWalls ||
+            playWallVisibilityMode === 'all' ||
             revealedWallSet.has(`${x}:${y}:${direction}`) ||
-            hasVisitedWallNeighbor(x, y, direction)
+            hasVisitedWallNeighbor(x, y, direction) ||
+            hasCurrentCellNeighbor(x, y, direction)
           )
         }
 
@@ -454,11 +484,11 @@ function MazeCanvas({
     onWallToggle,
     openSet,
     path,
+    playWallVisibilityMode,
     playHandGuideMode,
     revealedWalls,
     rowCount,
     showVisitedWalls,
-    showWalls,
     visited,
     wallColor,
   ])

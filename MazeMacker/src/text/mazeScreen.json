@@ -71,6 +71,7 @@
     "solved": "solved",
     "wallHidden": "隠す",
     "wallLabel": "迷路の壁",
+    "wallNearby": "周りのみ",
     "wallVisible": "表示する"
   },
   "status": {
