@@ -11,12 +11,13 @@ type SearchNode = {
   position: CellPosition
 }
 
-export type MazeSearchAlgorithm = 'astar' | 'bfs' | 'dfs'
+export type MazeSearchAlgorithm = 'astar' | 'bfs' | 'dfs' | 'rightHand'
 
 export type MazeSearchState = {
   algorithm: MazeSearchAlgorithm
   costs: number[][]
   currentCell: CellPosition | null
+  currentDirection: MazeWallDirection
   frontier: SearchNode[]
   isComplete: boolean
   isSolved: boolean
@@ -26,6 +27,7 @@ export type MazeSearchState = {
   path: boolean[][]
   stepCount: number
   goal: CellPosition
+  seenStates: string[]
   start: CellPosition
   visited: boolean[][]
 }
@@ -37,6 +39,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   { label: 'A*探索', value: 'astar' },
   { label: 'ダイクストラ法', value: 'bfs' },
   { label: '深さ優先探索', value: 'dfs' },
+  { label: '右手探索法', value: 'rightHand' },
 ]
 
 const SEARCH_DIRECTIONS: MazeWallDirection[] = ['top', 'right', 'bottom', 'left']
@@ -120,6 +123,156 @@ function buildPathGrid(
 
 function calculateHeuristic(position: CellPosition, goal: CellPosition) {
   return Math.abs(goal.x - position.x) + Math.abs(goal.y - position.y)
+}
+
+function turnRight(direction: MazeWallDirection): MazeWallDirection {
+  if (direction === 'top') {
+    return 'right'
+  }
+  if (direction === 'right') {
+    return 'bottom'
+  }
+  if (direction === 'bottom') {
+    return 'left'
+  }
+
+  return 'top'
+}
+
+function turnLeft(direction: MazeWallDirection): MazeWallDirection {
+  if (direction === 'top') {
+    return 'left'
+  }
+  if (direction === 'left') {
+    return 'bottom'
+  }
+  if (direction === 'bottom') {
+    return 'right'
+  }
+
+  return 'top'
+}
+
+function reverseDirection(direction: MazeWallDirection): MazeWallDirection {
+  if (direction === 'top') {
+    return 'bottom'
+  }
+  if (direction === 'right') {
+    return 'left'
+  }
+  if (direction === 'bottom') {
+    return 'top'
+  }
+
+  return 'right'
+}
+
+function getInitialDirection(maze: MazeData, start: CellPosition): MazeWallDirection {
+  for (const direction of SEARCH_DIRECTIONS) {
+    if (!maze[start.y][start.x].walls[direction]) {
+      return direction
+    }
+  }
+
+  return 'right'
+}
+
+function stepRightHandSearch(state: MazeSearchState): MazeSearchState {
+  const current = state.currentCell ?? state.start
+  const openSet = createBooleanGrid(state.maze)
+  const visited = state.visited.map((row) => [...row])
+  const parents = state.parents.map((row) => [...row])
+  const costs = state.costs.map((row) => [...row])
+  const seenStates = [...state.seenStates]
+
+  if (current.x === state.goal.x && current.y === state.goal.y) {
+    return {
+      ...state,
+      costs,
+      currentCell: null,
+      frontier: [],
+      isComplete: true,
+      isSolved: true,
+      openSet,
+      parents,
+      path: buildPathGrid(state.maze, parents, state.start, state.goal),
+      seenStates,
+      stepCount: state.stepCount + 1,
+      visited,
+    }
+  }
+
+  visited[current.y][current.x] = true
+
+  const directions = [
+    turnRight(state.currentDirection),
+    state.currentDirection,
+    turnLeft(state.currentDirection),
+    reverseDirection(state.currentDirection),
+  ]
+
+  for (const direction of directions) {
+    if (state.maze[current.y][current.x].walls[direction]) {
+      continue
+    }
+
+    const next = getCellNeighbor(state.maze, current, direction)
+
+    if (!next) {
+      continue
+    }
+
+    if (parents[next.y][next.x] === null) {
+      parents[next.y][next.x] = current
+    }
+
+    const stateKey = `${next.x},${next.y},${direction}`
+
+    if (seenStates.includes(stateKey)) {
+      return {
+        ...state,
+        costs,
+        currentCell: null,
+        frontier: [],
+        isComplete: true,
+        openSet,
+        parents,
+        seenStates,
+        stepCount: state.stepCount + 1,
+        visited,
+      }
+    }
+
+    seenStates.push(stateKey)
+    openSet[next.y][next.x] = true
+
+    return {
+      ...state,
+      costs,
+      currentCell: next,
+      currentDirection: direction,
+      frontier: [{ cost: state.stepCount + 1, parent: current, position: next }],
+      isComplete: false,
+      openSet,
+      parents,
+      seenStates,
+      stepCount: state.stepCount + 1,
+      visited,
+    }
+  }
+
+  return {
+    ...state,
+    costs,
+    currentCell: null,
+    frontier: [],
+    isComplete: true,
+    openSet,
+    parents,
+    seenStates,
+    stepCount: state.stepCount + 1,
+    visited,
+  }
 }
 
 function stepDepthFirstSearch(state: MazeSearchState): MazeSearchState {
@@ -250,12 +403,13 @@ export function createMazeSearchState(
   const goal =
     findCellByKind(maze, 'goal') ??
     { x: maze[0].length - 1, y: maze.length - 1 }
+  const currentDirection = getInitialDirection(maze, start)
   const visited = createBooleanGrid(maze)
   const openSet = createBooleanGrid(maze)
   const parents = createParentGrid(maze)
   const costs = createCostGrid(maze)
 
-  openSet[start.y][start.x] = true
+  openSet[start.y][start.x] = algorithm === 'rightHand'
   costs[start.y][start.x] = 0
 
   if (start.x === goal.x && start.y === goal.y) {
@@ -267,6 +421,7 @@ export function createMazeSearchState(
       algorithm,
       costs,
       currentCell: null,
+      currentDirection,
       frontier: [],
       isComplete: true,
       isSolved: true,
@@ -276,6 +431,7 @@ export function createMazeSearchState(
       path,
       stepCount: 0,
       goal,
+      seenStates: [`${start.x},${start.y},${currentDirection}`],
       start,
       visited,
     }
@@ -284,7 +440,8 @@ export function createMazeSearchState(
   return {
     algorithm,
     costs,
-    currentCell: null,
+    currentCell: algorithm === 'rightHand' ? start : null,
+    currentDirection,
     frontier: [{ cost: 0, parent: null, position: start }],
     isComplete: false,
     isSolved: false,
@@ -294,6 +451,7 @@ export function createMazeSearchState(
     path: createBooleanGrid(maze),
     stepCount: 0,
     goal,
+    seenStates: [`${start.x},${start.y},${currentDirection}`],
     start,
     visited,
   }
@@ -302,6 +460,10 @@ export function createMazeSearchState(
 export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
   if (state.isComplete) {
     return state
+  }
+
+  if (state.algorithm === 'rightHand') {
+    return stepRightHandSearch(state)
   }
 
   if (state.algorithm === 'dfs') {
