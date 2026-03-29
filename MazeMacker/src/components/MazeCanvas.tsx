@@ -44,6 +44,7 @@ type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
   bumpState?: BumpState | null
+  celebrateGoal?: boolean
   currentFacingDirection?: MazeWallDirection | null
   playWallVisibilityMode?: PlayWallVisibilityMode
   showVisitedWalls?: boolean
@@ -66,6 +67,7 @@ function MazeCanvas({
   maze,
   cellSize = 24,
   bumpState = null,
+  celebrateGoal = false,
   currentFacingDirection = null,
   playWallVisibilityMode = 'all',
   showVisitedWalls = false,
@@ -87,8 +89,10 @@ function MazeCanvas({
   const stageRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<p5 | null>(null)
   const bumpAnimationRef = useRef<number | null>(null)
+  const celebrationAnimationRef = useRef<number | null>(null)
   const bumpDirectionRef = useRef<MazeWallDirection | null>(null)
   const bumpProgressRef = useRef(0)
+  const celebrationProgressRef = useRef(0)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
   const rowCount = maze.length
@@ -98,6 +102,9 @@ function MazeCanvas({
     return () => {
       if (bumpAnimationRef.current !== null) {
         window.cancelAnimationFrame(bumpAnimationRef.current)
+      }
+      if (celebrationAnimationRef.current !== null) {
+        window.cancelAnimationFrame(celebrationAnimationRef.current)
       }
     }
   }, [])
@@ -372,6 +379,35 @@ function MazeCanvas({
                 currentHeight,
               )
 
+              if (celebrationProgressRef.current > 0) {
+                const burstProgress = celebrationProgressRef.current
+                const centerX = drawX + responsiveCellSize / 2
+                const centerY = drawY + responsiveCellSize / 2
+                const ringRadius = responsiveCellSize * (0.34 + burstProgress * 0.78)
+                const sparkRadius = responsiveCellSize * (0.44 + burstProgress * 0.92)
+
+                p.noFill()
+                p.stroke('#fbbf24')
+                p.strokeWeight(
+                  Math.max(2, responsiveCellSize * 0.08 * (1 - burstProgress * 0.45)),
+                )
+                p.circle(centerX, centerY, ringRadius * 2)
+
+                p.noStroke()
+                p.fill('#fde68a')
+
+                for (let index = 0; index < 8; index += 1) {
+                  const angle = (Math.PI * 2 * index) / 8
+                  const sparkX = centerX + Math.cos(angle) * sparkRadius
+                  const sparkY = centerY + Math.sin(angle) * sparkRadius
+                  const sparkSize = Math.max(
+                    4,
+                    responsiveCellSize * 0.12 * (1 - burstProgress * 0.3),
+                  )
+                  p.circle(sparkX, sparkY, sparkSize)
+                }
+              }
+
               if (currentFacingDirection) {
                 const frontMarker = getDirectionMarkerPosition(
                   drawX,
@@ -477,6 +513,7 @@ function MazeCanvas({
     currentCellSpan.columns,
     currentCellSpan.rows,
     currentFacingDirection,
+    celebrateGoal,
     editMode,
     editable,
     maze,
@@ -525,6 +562,37 @@ function MazeCanvas({
 
     bumpAnimationRef.current = window.requestAnimationFrame(animate)
   }, [bumpState])
+
+  useEffect(() => {
+    if (!celebrateGoal || currentCell === null) {
+      return
+    }
+
+    if (celebrationAnimationRef.current !== null) {
+      window.cancelAnimationFrame(celebrationAnimationRef.current)
+    }
+
+    const durationMs = 520
+    const startTime = performance.now()
+
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - startTime
+      const progress = Math.min(1, elapsed / durationMs)
+      celebrationProgressRef.current = Math.sin(progress * Math.PI)
+      instanceRef.current?.redraw()
+
+      if (progress < 1) {
+        celebrationAnimationRef.current = window.requestAnimationFrame(animate)
+        return
+      }
+
+      celebrationProgressRef.current = 0
+      instanceRef.current?.redraw()
+      celebrationAnimationRef.current = null
+    }
+
+    celebrationAnimationRef.current = window.requestAnimationFrame(animate)
+  }, [celebrateGoal, currentCell])
 
   return (
     <div

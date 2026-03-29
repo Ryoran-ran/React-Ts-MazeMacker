@@ -262,13 +262,29 @@
   gap: 8px;
 }
 
+.app__playPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .app__playHint {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--text-h);
   text-align: left;
- }
+}
+
+.app__playStatus {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-h);
+  text-align: right;
+  white-space: nowrap;
+}
 
 .maze-canvas {
   width: 100%;

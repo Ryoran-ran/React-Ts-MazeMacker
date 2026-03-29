@@ -572,18 +572,25 @@ function MazeScreen() {
           </div>
         ) : activeTab === 'play' ? (
           <div className="app__playPanel">
-            <p className="app__playHint">{mazeScreenText.play.hint}</p>
+            <div className="app__playPanelHeader">
+              <p className="app__playHint">{mazeScreenText.play.hint}</p>
+              <p className="app__playStatus">
+                {mazeScreenText.play.steps}: {playerState.stepCount}
+                {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
+              </p>
+            </div>
             <MazeCanvas
               bumpState={playerBumpState}
-            currentFacingDirection={playerState.facingDirection}
-            maze={generationState.maze}
-            playHandGuideMode={playHandGuideMode}
-            playWallVisibilityMode={playWallVisibilityMode}
-            revealedWalls={playerState.revealedWalls}
-            showVisitedWalls={playWallDiscoveryMode === 'visited'}
-            visited={playerState.visited}
-            currentCell={playerState.position}
-            currentCellSpan={{ columns: 1, rows: 1 }}
+              celebrateGoal={playerState.isSolved}
+              currentFacingDirection={playerState.facingDirection}
+              maze={generationState.maze}
+              playHandGuideMode={playHandGuideMode}
+              playWallVisibilityMode={playWallVisibilityMode}
+              revealedWalls={playerState.revealedWalls}
+              showVisitedWalls={playWallDiscoveryMode === 'visited'}
+              visited={playerState.visited}
+              currentCell={playerState.position}
+              currentCellSpan={{ columns: 1, rows: 1 }}
               cellSize={24}
             />
           </div>
@@ -885,10 +892,6 @@ function MazeScreen() {
                     </button>
                   </div>
                 </div>
-                <p className="app__status">
-                  {mazeScreenText.play.steps}: {playerState.stepCount}
-                  {playerState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
-                </p>
               </div>
               <div className="app__controlsActions">
                 <button
