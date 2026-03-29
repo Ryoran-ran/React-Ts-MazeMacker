@@ -1,6 +1,7 @@
 import { stepAStarSearch } from './mazeSearch.astar'
 import { stepBreadthFirstSearch } from './mazeSearch.bfs'
 import { stepDepthFirstSearch } from './mazeSearch.dfs'
+import { stepLeftHandSearch } from './mazeSearch.leftHand'
 import { stepRightHandSearch } from './mazeSearch.rightHand'
 import {
   MAZE_SEARCH_ALGORITHM_OPTIONS,
@@ -24,6 +25,10 @@ export function stepMazeSearch(state: MazeSearchState): MazeSearchState {
 
   if (state.algorithm === 'rightHand') {
     return stepRightHandSearch(state)
+  }
+
+  if (state.algorithm === 'leftHand') {
+    return stepLeftHandSearch(state)
   }
 
   if (state.algorithm === 'dfs') {

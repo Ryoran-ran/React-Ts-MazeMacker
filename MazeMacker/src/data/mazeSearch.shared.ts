@@ -11,7 +11,7 @@ export type SearchNode = {
   position: CellPosition
 }
 
-export type MazeSearchAlgorithm = 'astar' | 'bfs' | 'dfs' | 'rightHand'
+export type MazeSearchAlgorithm = 'astar' | 'bfs' | 'dfs' | 'leftHand' | 'rightHand'
 
 export type MazeSearchState = {
   algorithm: MazeSearchAlgorithm
@@ -39,6 +39,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   { label: 'A*探索', value: 'astar' },
   { label: 'ダイクストラ法', value: 'bfs' },
   { label: '深さ優先探索', value: 'dfs' },
+  { label: '左手探索法', value: 'leftHand' },
   { label: '右手探索法', value: 'rightHand' },
 ]
 
@@ -194,7 +195,7 @@ export function createMazeSearchState(
   const parents = createParentGrid(maze)
   const costs = createCostGrid(maze)
 
-  openSet[start.y][start.x] = algorithm === 'rightHand'
+  openSet[start.y][start.x] = algorithm === 'rightHand' || algorithm === 'leftHand'
   costs[start.y][start.x] = 0
 
   if (start.x === goal.x && start.y === goal.y) {
@@ -225,7 +226,7 @@ export function createMazeSearchState(
   return {
     algorithm,
     costs,
-    currentCell: algorithm === 'rightHand' ? start : null,
+    currentCell: algorithm === 'rightHand' || algorithm === 'leftHand' ? start : null,
     currentDirection,
     frontier: [{ cost: 0, parent: null, position: start }],
     isComplete: false,

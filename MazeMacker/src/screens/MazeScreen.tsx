@@ -67,6 +67,7 @@ function createSearchStateMap(
     astar: createMazeSearchState(maze, 'astar'),
     bfs: createMazeSearchState(maze, 'bfs'),
     dfs: createMazeSearchState(maze, 'dfs'),
+    leftHand: createMazeSearchState(maze, 'leftHand'),
     rightHand: createMazeSearchState(maze, 'rightHand'),
   }
 }
