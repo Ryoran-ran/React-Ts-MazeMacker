@@ -1036,7 +1036,6 @@ function MazeScreen() {
                     ))}
                   </div>
                 </div>
-                <p className="app__status">{mazeScreenText.search.hint}</p>
               </div>
             </>
           ) : activeTab === 'play' ? (
@@ -1044,7 +1043,7 @@ function MazeScreen() {
               <div className="app__controlsBody">
                 <div className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
-                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Play wall settings">
+                <div className="app__tabs app__tabs--playWalls" role="tablist" aria-label="Play wall settings">
                   <button
                     className={`app__tab ${playWallVisibilityMode === 'all' ? 'app__tab--active' : ''}`}
                     type="button"

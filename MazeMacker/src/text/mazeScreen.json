@@ -72,7 +72,7 @@
     },
     "status": {
       "algorithm": "search",
-      "steps": "search steps",
+      "steps": "steps",
       "solved": "solved"
     }
   },
@@ -99,6 +99,6 @@
     "dimensions": "size",
     "steps": "steps",
     "playing": "playing",
-    "completed": "completed"
+    "completed": "cmp"
   }
 }
