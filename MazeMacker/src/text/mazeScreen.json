@@ -20,6 +20,7 @@
   "algorithm": {
     "label": "生成方式",
     "options": {
+      "prim": "Prim法",
       "digging": "穴掘り法",
       "stickFalling": "棒倒し法",
       "wallFilling": "壁埋め法",
