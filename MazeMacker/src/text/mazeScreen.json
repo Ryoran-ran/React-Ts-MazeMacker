@@ -20,7 +20,8 @@
   "algorithm": {
     "label": "生成方式",
     "options": {
-      "digging": "穴掘り法"
+      "digging": "穴掘り法",
+      "stickFalling": "棒倒し法"
     }
   },
   "edit": {
