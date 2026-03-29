@@ -141,7 +141,7 @@ export function createBorderOnlyGrid(dimensions: MazeDimensions): MazeData {
 }
 
 export function normalizeMazeSeed(seed: number) {
-  const normalized = Math.abs(Math.trunc(seed)) >>> 0
+  const normalized = Math.trunc(seed) >>> 0
 
   return normalized === 0 ? 1 : normalized
 }
