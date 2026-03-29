@@ -2,7 +2,8 @@
   "title": "Maze Renderer",
   "tabs": {
     "controls": "操作",
-    "settings": "設定"
+    "settings": "設定",
+    "edit": "編集"
   },
   "buttons": {
     "applySize": "サイズを反映",
@@ -15,6 +16,14 @@
   "size": {
     "columns": "横",
     "rows": "縦"
+  },
+  "edit": {
+    "hint": "迷路をクリックします。",
+    "modes": {
+      "wall": "壁",
+      "start": "スタート",
+      "goal": "ゴール"
+    }
   },
   "status": {
     "dimensions": "size",

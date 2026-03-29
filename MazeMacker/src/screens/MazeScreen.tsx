@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react'
-import MazeCanvas from '../components/MazeCanvas'
+import MazeCanvas, {
+  type MazeEditMode,
+  type MazeWallDirection,
+} from '../components/MazeCanvas'
 import {
   DEFAULT_MAZE_DIMENSIONS,
+  type MazeCellKind,
   type MazeDimensions,
   completeMazeGeneration,
   createMazeGenerationState,
+  setMazeCellKind,
   stepMazeGeneration,
+  toggleMazeWall,
 } from '../data/mazeGenerator'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
-type SidebarTab = 'controls' | 'settings'
+type SidebarTab = 'controls' | 'settings' | 'edit'
 
 function normalizeDimension(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
@@ -29,6 +35,7 @@ function MazeScreen() {
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
+  const [editMode, setEditMode] = useState<MazeEditMode>('wall')
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -60,6 +67,14 @@ function MazeScreen() {
 
   function handlePlayToggle() {
     setIsPlaying((currentState) => !currentState)
+  }
+
+  function handleTabChange(nextTab: SidebarTab) {
+    if (nextTab === 'edit') {
+      setIsPlaying(false)
+    }
+
+    setActiveTab(nextTab)
   }
 
   function handleComplete() {
@@ -99,6 +114,24 @@ function MazeScreen() {
     setGenerationState(createMazeGenerationState(nextDimensions))
   }
 
+  function handleWallToggle(
+    position: { x: number; y: number },
+    direction: MazeWallDirection,
+  ) {
+    setIsPlaying(false)
+    setGenerationState((currentState) => toggleMazeWall(currentState, position, direction))
+  }
+
+  function handleCellSelect(position: { x: number; y: number }) {
+    if (editMode === 'wall') {
+      return
+    }
+
+    const nextKind: MazeCellKind = editMode === 'start' ? 'start' : 'goal'
+    setIsPlaying(false)
+    setGenerationState((currentState) => setMazeCellKind(currentState, position, nextKind))
+  }
+
   return (
     <main className="app">
       <header className="app__topbar">
@@ -111,6 +144,10 @@ function MazeScreen() {
           visited={generationState.visited}
           currentCell={generationState.currentCell}
           cellSize={24}
+          editable={activeTab === 'edit'}
+          editMode={editMode}
+          onCellSelect={handleCellSelect}
+          onWallToggle={handleWallToggle}
         />
       </section>
 
@@ -121,7 +158,7 @@ function MazeScreen() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'controls'}
-            onClick={() => setActiveTab('controls')}
+            onClick={() => handleTabChange('controls')}
           >
             {mazeScreenText.tabs.controls}
           </button>
@@ -130,9 +167,18 @@ function MazeScreen() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'settings'}
-            onClick={() => setActiveTab('settings')}
+            onClick={() => handleTabChange('settings')}
           >
             {mazeScreenText.tabs.settings}
+          </button>
+          <button
+            className={`app__tab ${activeTab === 'edit' ? 'app__tab--active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'edit'}
+            onClick={() => handleTabChange('edit')}
+          >
+            {mazeScreenText.tabs.edit}
           </button>
         </div>
 
@@ -178,6 +224,83 @@ function MazeScreen() {
                 onClick={handleApplyDimensions}
               >
                 {mazeScreenText.buttons.applySize}
+              </button>
+            </>
+          ) : activeTab === 'edit' ? (
+            <>
+              <p className="app__status">{mazeScreenText.edit.hint}</p>
+              <div className="app__tabs app__tabs--edit" role="tablist" aria-label="Edit modes">
+                <button
+                  className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('wall')}
+                >
+                  {mazeScreenText.edit.modes.wall}
+                </button>
+                <button
+                  className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('start')}
+                >
+                  {mazeScreenText.edit.modes.start}
+                </button>
+                <button
+                  className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('goal')}
+                >
+                  {mazeScreenText.edit.modes.goal}
+                </button>
+              </div>
+              <div className="app__sizeFields">
+                <label className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_DIMENSION}
+                    step={1}
+                    value={dimensionInputs.columns}
+                    onChange={(event) =>
+                      setDimensionInputs((current) => ({
+                        ...current,
+                        columns: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.size.rows}</span>
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_DIMENSION}
+                    step={1}
+                    value={dimensionInputs.rows}
+                    onChange={(event) =>
+                      setDimensionInputs((current) => ({
+                        ...current,
+                        rows: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <button
+                className="app__button app__button--secondary"
+                onClick={handleApplyDimensions}
+              >
+                {mazeScreenText.buttons.applySize}
+              </button>
+              <button
+                className="app__button"
+                onClick={handleComplete}
+                disabled={generationState.isComplete}
+              >
+                {mazeScreenText.buttons.complete}
+              </button>
+              <button className="app__button app__button--secondary" onClick={handleReset}>
+                {mazeScreenText.buttons.reset}
               </button>
             </>
           ) : (

@@ -1,6 +1,8 @@
 import { type MazeCell, type MazeData } from '../components/MazeCanvas'
 
 type Direction = 'top' | 'right' | 'bottom' | 'left'
+export type MazeWallDirection = Direction
+export type MazeCellKind = NonNullable<MazeCell['kind']>
 
 type CellPosition = {
   x: number
@@ -94,13 +96,17 @@ function cloneVisited(visited: boolean[][]): boolean[][] {
   return visited.map((row) => [...row])
 }
 
+function createVisitedGrid(dimensions: MazeDimensions): boolean[][] {
+  return Array.from({ length: dimensions.rows }, () =>
+    Array.from({ length: dimensions.columns }, () => false),
+  )
+}
+
 export function createMazeGenerationState(
   dimensions: MazeDimensions = DEFAULT_MAZE_DIMENSIONS,
 ): MazeGenerationState {
   const maze = createInitialGrid(dimensions)
-  const visited = Array.from({ length: dimensions.rows }, () =>
-    Array.from({ length: dimensions.columns }, () => false),
-  )
+  const visited = createVisitedGrid(dimensions)
 
   visited[0][0] = true
 
@@ -195,4 +201,67 @@ export function completeMazeGeneration(
   }
 
   return state
+}
+
+export function toggleMazeWall(
+  state: MazeGenerationState,
+  position: CellPosition,
+  direction: MazeWallDirection,
+): MazeGenerationState {
+  const maze = cloneMaze(state.maze)
+  const visited = createVisitedGrid(state.dimensions)
+  const { x, y } = position
+
+  const nextValue = !maze[y][x].walls[direction]
+  maze[y][x].walls[direction] = nextValue
+
+  if (direction === 'top' && y > 0) {
+    maze[y - 1][x].walls.bottom = nextValue
+  }
+  if (direction === 'right' && x < state.dimensions.columns - 1) {
+    maze[y][x + 1].walls.left = nextValue
+  }
+  if (direction === 'bottom' && y < state.dimensions.rows - 1) {
+    maze[y + 1][x].walls.top = nextValue
+  }
+  if (direction === 'left' && x > 0) {
+    maze[y][x - 1].walls.right = nextValue
+  }
+
+  return {
+    ...state,
+    currentCell: null,
+    isComplete: true,
+    maze,
+    stack: [],
+    visited,
+  }
+}
+
+export function setMazeCellKind(
+  state: MazeGenerationState,
+  position: CellPosition,
+  kind: MazeCellKind,
+): MazeGenerationState {
+  const maze = cloneMaze(state.maze)
+  const visited = createVisitedGrid(state.dimensions)
+
+  for (let y = 0; y < state.dimensions.rows; y += 1) {
+    for (let x = 0; x < state.dimensions.columns; x += 1) {
+      if (maze[y][x].kind === kind) {
+        maze[y][x].kind = undefined
+      }
+    }
+  }
+
+  maze[position.y][position.x].kind = kind
+
+  return {
+    ...state,
+    currentCell: null,
+    isComplete: true,
+    maze,
+    stack: [],
+    visited,
+  }
 }
