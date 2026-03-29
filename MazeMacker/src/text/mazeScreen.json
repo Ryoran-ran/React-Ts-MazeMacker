@@ -14,6 +14,12 @@
     "complete": "最後まで作成",
     "reset": "リセット"
   },
+  "speed": {
+    "fast": "速い",
+    "generation": "生成スピード",
+    "search": "探索スピード",
+    "slow": "遅い"
+  },
   "size": {
     "columns": "横",
     "rows": "縦"

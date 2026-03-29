@@ -26,7 +26,10 @@ import {
 } from '../data/mazeSearch'
 import mazeScreenText from '../text/mazeScreen.json'
 
-const PLAY_INTERVAL_MS = 40
+const DEFAULT_GENERATION_INTERVAL_MS = 40
+const DEFAULT_SEARCH_INTERVAL_MS = 40
+const MAX_PLAYBACK_INTERVAL_MS = 180
+const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
 type SidebarTab = 'controls' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
@@ -59,6 +62,10 @@ function normalizeDimension(value: string, fallback: number) {
   }
 
   return Math.max(MIN_DIMENSION, parsed)
+}
+
+function getPlaybackLabel(intervalMs: number) {
+  return `${Math.round(1000 / intervalMs)} fps`
 }
 
 function createSearchStateMap(
@@ -178,6 +185,8 @@ function MazeScreen() {
   const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
+  const [generationIntervalMs, setGenerationIntervalMs] = useState(DEFAULT_GENERATION_INTERVAL_MS)
+  const [searchIntervalMs, setSearchIntervalMs] = useState(DEFAULT_SEARCH_INTERVAL_MS)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
@@ -197,12 +206,12 @@ function MazeScreen() {
 
     const timerId = window.setInterval(() => {
       setGenerationState((currentState) => stepMazeGeneration(currentState))
-    }, PLAY_INTERVAL_MS)
+    }, generationIntervalMs)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [generationState.isComplete, isPlaying])
+  }, [generationIntervalMs, generationState.isComplete, isPlaying])
 
   useEffect(() => {
     if (
@@ -222,12 +231,12 @@ function MazeScreen() {
 
         return nextStates
       })
-    }, PLAY_INTERVAL_MS)
+    }, searchIntervalMs)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [isSearchPlaying, selectedSearchAlgorithms])
+  }, [isSearchPlaying, searchIntervalMs, selectedSearchAlgorithms])
 
   useEffect(() => {
     if (generationState.isComplete) {
@@ -747,6 +756,31 @@ function MazeScreen() {
             <>
               <div className="app__controlsBody">
                 <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">{mazeScreenText.speed.search}</span>
+                    <span className="app__fieldMeta">{getPlaybackLabel(searchIntervalMs)}</span>
+                  </div>
+                  <input
+                    className="app__range"
+                    type="range"
+                    min={MIN_PLAYBACK_INTERVAL_MS}
+                    max={MAX_PLAYBACK_INTERVAL_MS}
+                    step={10}
+                    value={MAX_PLAYBACK_INTERVAL_MS + MIN_PLAYBACK_INTERVAL_MS - searchIntervalMs}
+                    onChange={(event) =>
+                      setSearchIntervalMs(
+                        MAX_PLAYBACK_INTERVAL_MS +
+                          MIN_PLAYBACK_INTERVAL_MS -
+                          Number(event.target.value),
+                      )
+                    }
+                  />
+                  <div className="app__rangeLabels" aria-hidden="true">
+                    <span>{mazeScreenText.speed.slow}</span>
+                    <span>{mazeScreenText.speed.fast}</span>
+                  </div>
+                </div>
+                <div className="app__field">
                   <span className="app__fieldLabel">
                     {mazeScreenText.search.algorithmLabel}
                   </span>
@@ -911,6 +945,35 @@ function MazeScreen() {
           ) : activeTab === 'controls' ? (
             <>
               <div className="app__controlsBody">
+                <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">{mazeScreenText.speed.generation}</span>
+                    <span className="app__fieldMeta">{getPlaybackLabel(generationIntervalMs)}</span>
+                  </div>
+                  <input
+                    className="app__range"
+                    type="range"
+                    min={MIN_PLAYBACK_INTERVAL_MS}
+                    max={MAX_PLAYBACK_INTERVAL_MS}
+                    step={10}
+                    value={
+                      MAX_PLAYBACK_INTERVAL_MS +
+                      MIN_PLAYBACK_INTERVAL_MS -
+                      generationIntervalMs
+                    }
+                    onChange={(event) =>
+                      setGenerationIntervalMs(
+                        MAX_PLAYBACK_INTERVAL_MS +
+                          MIN_PLAYBACK_INTERVAL_MS -
+                          Number(event.target.value),
+                      )
+                    }
+                  />
+                  <div className="app__rangeLabels" aria-hidden="true">
+                    <span>{mazeScreenText.speed.slow}</span>
+                    <span>{mazeScreenText.speed.fast}</span>
+                  </div>
+                </div>
                 <label className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.algorithm.label}</span>
                   <select

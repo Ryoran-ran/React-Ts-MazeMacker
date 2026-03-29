@@ -151,11 +151,25 @@
   gap: 6px;
 }
 
+.app__fieldHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .app__fieldLabel {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--text-h);
   text-align: left;
+}
+
+.app__fieldMeta {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-align: right;
 }
 
 .app__input {
@@ -167,6 +181,20 @@
   font: inherit;
   color: var(--text-h);
   background: var(--bg);
+}
+
+.app__range {
+  width: 100%;
+  margin: 0;
+}
+
+.app__rangeLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
 }
 
 .app__button {
