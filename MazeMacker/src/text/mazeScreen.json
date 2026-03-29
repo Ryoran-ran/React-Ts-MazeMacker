@@ -2,7 +2,8 @@
   "title": "Maze Renderer",
   "tabs": {
     "controls": "操作",
-    "settings": "設定"
+    "settings": "設定",
+    "edit": "編集"
   },
   "buttons": {
     "applySize": "サイズを反映",
@@ -15,6 +16,9 @@
   "size": {
     "columns": "横",
     "rows": "縦"
+  },
+  "edit": {
+    "hint": "セルの辺をクリックして壁を切り替えます。"
   },
   "status": {
     "dimensions": "size",

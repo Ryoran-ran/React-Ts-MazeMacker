@@ -14,6 +14,7 @@ export type MazeCell = {
 }
 
 export type MazeData = MazeCell[][]
+export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
 
 type CellPosition = {
   x: number
@@ -27,6 +28,8 @@ type MazeCanvasProps = {
   backgroundColor?: string
   currentCell?: CellPosition | null
   visited?: boolean[][]
+  editable?: boolean
+  onWallToggle?: (position: CellPosition, direction: MazeWallDirection) => void
 }
 
 function MazeCanvas({
@@ -36,6 +39,8 @@ function MazeCanvas({
   backgroundColor = '#ffffff',
   currentCell = null,
   visited,
+  editable = false,
+  onWallToggle,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<p5 | null>(null)
@@ -97,6 +102,33 @@ function MazeCanvas({
       p.setup = () => {
         p.createCanvas(canvasWidth, canvasHeight)
         p.noLoop()
+      }
+
+      p.mousePressed = () => {
+        if (!editable || !onWallToggle) {
+          return
+        }
+
+        const clickX = p.mouseX
+        const clickY = p.mouseY
+
+        if (clickX < 0 || clickX >= canvasWidth || clickY < 0 || clickY >= canvasHeight) {
+          return
+        }
+
+        const cellX = Math.min(columnCount - 1, Math.floor(clickX / responsiveCellSize))
+        const cellY = Math.min(rowCount - 1, Math.floor(clickY / responsiveCellSize))
+        const localX = clickX - cellX * responsiveCellSize
+        const localY = clickY - cellY * responsiveCellSize
+        const distances: Array<{ direction: MazeWallDirection; distance: number }> = [
+          { direction: 'top', distance: localY },
+          { direction: 'right', distance: responsiveCellSize - localX },
+          { direction: 'bottom', distance: responsiveCellSize - localY },
+          { direction: 'left', distance: localX },
+        ]
+
+        distances.sort((left, right) => left.distance - right.distance)
+        onWallToggle({ x: cellX, y: cellY }, distances[0].direction)
       }
 
       p.draw = () => {
@@ -189,13 +221,20 @@ function MazeCanvas({
     containerSize.height,
     containerSize.width,
     currentCell,
+    editable,
     maze,
+    onWallToggle,
     rowCount,
     visited,
     wallColor,
   ])
 
-  return <div ref={containerRef} className="maze-canvas" />
+  return (
+    <div
+      ref={containerRef}
+      className={`maze-canvas ${editable ? 'maze-canvas--editable' : ''}`}
+    />
+  )
 }
 
 export default MazeCanvas

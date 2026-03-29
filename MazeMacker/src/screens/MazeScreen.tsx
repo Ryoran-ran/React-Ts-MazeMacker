@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
-import MazeCanvas from '../components/MazeCanvas'
+import MazeCanvas, { type MazeWallDirection } from '../components/MazeCanvas'
 import {
   DEFAULT_MAZE_DIMENSIONS,
   type MazeDimensions,
   completeMazeGeneration,
   createMazeGenerationState,
   stepMazeGeneration,
+  toggleMazeWall,
 } from '../data/mazeGenerator'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const PLAY_INTERVAL_MS = 40
 const MIN_DIMENSION = 2
-type SidebarTab = 'controls' | 'settings'
+type SidebarTab = 'controls' | 'settings' | 'edit'
 
 function normalizeDimension(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
@@ -62,6 +63,14 @@ function MazeScreen() {
     setIsPlaying((currentState) => !currentState)
   }
 
+  function handleTabChange(nextTab: SidebarTab) {
+    if (nextTab === 'edit') {
+      setIsPlaying(false)
+    }
+
+    setActiveTab(nextTab)
+  }
+
   function handleComplete() {
     setIsPlaying(false)
     setGenerationState((currentState) => completeMazeGeneration(currentState))
@@ -99,6 +108,14 @@ function MazeScreen() {
     setGenerationState(createMazeGenerationState(nextDimensions))
   }
 
+  function handleWallToggle(
+    position: { x: number; y: number },
+    direction: MazeWallDirection,
+  ) {
+    setIsPlaying(false)
+    setGenerationState((currentState) => toggleMazeWall(currentState, position, direction))
+  }
+
   return (
     <main className="app">
       <header className="app__topbar">
@@ -111,6 +128,8 @@ function MazeScreen() {
           visited={generationState.visited}
           currentCell={generationState.currentCell}
           cellSize={24}
+          editable={activeTab === 'edit'}
+          onWallToggle={handleWallToggle}
         />
       </section>
 
@@ -121,7 +140,7 @@ function MazeScreen() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'controls'}
-            onClick={() => setActiveTab('controls')}
+            onClick={() => handleTabChange('controls')}
           >
             {mazeScreenText.tabs.controls}
           </button>
@@ -130,9 +149,18 @@ function MazeScreen() {
             type="button"
             role="tab"
             aria-selected={activeTab === 'settings'}
-            onClick={() => setActiveTab('settings')}
+            onClick={() => handleTabChange('settings')}
           >
             {mazeScreenText.tabs.settings}
+          </button>
+          <button
+            className={`app__tab ${activeTab === 'edit' ? 'app__tab--active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'edit'}
+            onClick={() => handleTabChange('edit')}
+          >
+            {mazeScreenText.tabs.edit}
           </button>
         </div>
 
@@ -178,6 +206,53 @@ function MazeScreen() {
                 onClick={handleApplyDimensions}
               >
                 {mazeScreenText.buttons.applySize}
+              </button>
+            </>
+          ) : activeTab === 'edit' ? (
+            <>
+              <p className="app__status">{mazeScreenText.edit.hint}</p>
+              <div className="app__sizeFields">
+                <label className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_DIMENSION}
+                    step={1}
+                    value={dimensionInputs.columns}
+                    onChange={(event) =>
+                      setDimensionInputs((current) => ({
+                        ...current,
+                        columns: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.size.rows}</span>
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_DIMENSION}
+                    step={1}
+                    value={dimensionInputs.rows}
+                    onChange={(event) =>
+                      setDimensionInputs((current) => ({
+                        ...current,
+                        rows: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <button
+                className="app__button app__button--secondary"
+                onClick={handleApplyDimensions}
+              >
+                {mazeScreenText.buttons.applySize}
+              </button>
+              <button className="app__button app__button--secondary" onClick={handleReset}>
+                {mazeScreenText.buttons.reset}
               </button>
             </>
           ) : (
