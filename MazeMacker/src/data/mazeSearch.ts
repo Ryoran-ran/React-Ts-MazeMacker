@@ -35,7 +35,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   value: MazeSearchAlgorithm
 }> = [
   { label: 'A*探索', value: 'astar' },
-  { label: '幅優先探索', value: 'bfs' },
+  { label: 'ダイクストラ法', value: 'bfs' },
   { label: '深さ優先探索', value: 'dfs' },
 ]
 
@@ -222,7 +222,10 @@ function takeNextNode(state: MazeSearchState, frontier: SearchNode[]) {
       const heuristic = calculateHeuristic(frontier[index].position, state.goal)
       const score = frontier[index].cost + heuristic
 
-      if (score < bestScore || (score === bestScore && heuristic < bestHeuristic)) {
+      if (
+        score < bestScore ||
+        (score === bestScore && heuristic < bestHeuristic)
+      ) {
         bestIndex = index
         bestHeuristic = heuristic
         bestScore = score
