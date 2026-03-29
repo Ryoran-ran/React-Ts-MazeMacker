@@ -92,6 +92,7 @@ function MazeCanvas({
       )
       const canvasWidth = responsiveCellSize * columnCount
       const canvasHeight = responsiveCellSize * rowCount
+      const outerBorderWeight = 2
 
       p.setup = () => {
         p.createCanvas(canvasWidth, canvasHeight)
@@ -162,6 +163,16 @@ function MazeCanvas({
             }
           }
         }
+
+        p.stroke(wallColor)
+        p.strokeWeight(outerBorderWeight)
+        p.noFill()
+        p.rect(
+          outerBorderWeight / 2,
+          outerBorderWeight / 2,
+          canvasWidth - outerBorderWeight,
+          canvasHeight - outerBorderWeight,
+        )
       }
     }
 
