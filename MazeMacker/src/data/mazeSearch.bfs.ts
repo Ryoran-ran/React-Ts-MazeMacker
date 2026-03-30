@@ -4,7 +4,30 @@ import {
   getMovementCost,
   shuffleDirections,
   type MazeSearchState,
+  type SearchNode,
 } from './mazeSearch.shared'
+
+function takeNextNode(state: MazeSearchState, frontier: SearchNode[]) {
+  while (frontier.length > 0) {
+    let bestIndex = 0
+    let bestCost = frontier[0].cost
+
+    for (let index = 1; index < frontier.length; index += 1) {
+      if (frontier[index].cost < bestCost) {
+        bestIndex = index
+        bestCost = frontier[index].cost
+      }
+    }
+
+    const [candidate] = frontier.splice(bestIndex, 1)
+
+    if (candidate.cost <= state.costs[candidate.position.y][candidate.position.x]) {
+      return candidate
+    }
+  }
+
+  return undefined
+}
 
 export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState {
   const frontier = [...state.frontier]
@@ -12,27 +35,7 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
   const visited = state.visited.map((row) => [...row])
   const parents = state.parents.map((row) => [...row])
   const costs = state.costs.map((row) => [...row])
-  let currentNode = frontier.shift()
-
-  while (frontier.length > 0 && currentNode) {
-    let bestIndex = -1
-
-    for (let index = 0; index < frontier.length; index += 1) {
-      if (
-        frontier[index].cost <
-        currentNode.cost
-      ) {
-        bestIndex = index
-      }
-    }
-
-    if (bestIndex === -1) {
-      break
-    }
-
-    frontier.unshift(currentNode)
-    currentNode = frontier.splice(bestIndex, 1)[0]
-  }
+  const currentNode = takeNextNode(state, frontier)
 
   if (!currentNode) {
     return {
@@ -76,7 +79,7 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
 
     const next = getCellNeighbor(state.maze, current, direction)
 
-    if (!next || visited[next.y][next.x] || openSet[next.y][next.x]) {
+    if (!next) {
       continue
     }
 
@@ -87,8 +90,8 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
     }
 
     costs[next.y][next.x] = nextCost
-    openSet[next.y][next.x] = true
     parents[next.y][next.x] = current
+    openSet[next.y][next.x] = true
     frontier.push({
       cost: nextCost,
       parent: current,
