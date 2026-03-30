@@ -8,14 +8,22 @@ export type MazeCellWalls = {
   left: boolean
 }
 
+export type MazeCellCosts = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 export type MazeCell = {
   kind?: 'goal' | 'start'
+  costs: MazeCellCosts
   walls: MazeCellWalls
 }
 
 export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
-export type MazeEditMode = 'goal' | 'start' | 'wall'
+export type MazeEditMode = 'cost' | 'goal' | 'start' | 'wall'
 export type MazeDisplayMode = 'graph' | 'maze'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
@@ -62,7 +70,13 @@ type MazeCanvasProps = {
   visited?: boolean[][]
   editable?: boolean
   editMode?: MazeEditMode
+  editCostValue?: number
   onCellSelect?: (position: CellPosition) => void
+  onEdgeCostSet?: (
+    position: CellPosition,
+    direction: MazeWallDirection,
+    cost: number,
+  ) => void
   onWallToggle?: (position: CellPosition, direction: MazeWallDirection) => void
 }
 
@@ -87,7 +101,9 @@ function MazeCanvas({
   visited,
   editable = false,
   editMode = 'wall',
+  editCostValue = 1,
   onCellSelect,
+  onEdgeCostSet,
   onWallToggle,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -268,6 +284,36 @@ function MazeCanvas({
         }
       }
 
+      function hasNeighborForDirection(
+        x: number,
+        y: number,
+        direction: MazeWallDirection,
+      ) {
+        if (direction === 'top') {
+          return y > 0
+        }
+        if (direction === 'right') {
+          return x < columnCount - 1
+        }
+        if (direction === 'bottom') {
+          return y < rowCount - 1
+        }
+
+        return x > 0
+      }
+
+      function canEditCost(
+        x: number,
+        y: number,
+        direction: MazeWallDirection | null,
+      ) {
+        if (direction === null) {
+          return false
+        }
+
+        return hasNeighborForDirection(x, y, direction) && !maze[y][x].walls[direction]
+      }
+
       p.mouseMoved = () => {
         if (editable) {
           hoverTargetRef.current = resolveEditTarget(p.mouseX, p.mouseY)
@@ -299,6 +345,31 @@ function MazeCanvas({
 
         if (editMode === 'start' || editMode === 'goal') {
           onCellSelect?.({ x: cellX, y: cellY })
+          return
+        }
+
+        if (editMode === 'cost') {
+          if (!onEdgeCostSet) {
+            return
+          }
+
+          const localX = clickX - cellX * responsiveCellSize
+          const localY = clickY - cellY * responsiveCellSize
+          const distances: Array<{ direction: MazeWallDirection; distance: number }> = [
+            { direction: 'top', distance: localY },
+            { direction: 'right', distance: responsiveCellSize - localX },
+            { direction: 'bottom', distance: responsiveCellSize - localY },
+            { direction: 'left', distance: localX },
+          ]
+
+          distances.sort((left, right) => left.distance - right.distance)
+          const direction = distances[0].direction
+
+          if (!canEditCost(cellX, cellY, direction)) {
+            return
+          }
+
+          onEdgeCostSet({ x: cellX, y: cellY }, direction, editCostValue)
           return
         }
 
@@ -427,12 +498,16 @@ function MazeCanvas({
               }
 
               if (hoveredEditTarget.direction) {
-                if (displayMode === 'maze') {
+                if (editMode === 'cost' && !canEditCost(x, y, hoveredEditTarget.direction)) {
+                  // Skip invalid cost previews on walls or borders.
+                } else if (displayMode === 'maze') {
                   p.stroke(15, 23, 42, 90)
                   p.strokeWeight(Math.max(4, responsiveCellSize * 0.14))
 
                   if (editMode === 'wall') {
                     p.stroke(15, 23, 42, 120)
+                  } else if (editMode === 'cost') {
+                    p.stroke(37, 99, 235, 140)
                   }
 
                   if (hoveredEditTarget.direction === 'top') {
@@ -470,13 +545,13 @@ function MazeCanvas({
                     targetX -= responsiveCellSize
                   }
 
-                  p.stroke(15, 23, 42, 110)
+                  p.stroke(editMode === 'cost' ? 37 : 15, editMode === 'cost' ? 99 : 23, editMode === 'cost' ? 235 : 42, editMode === 'cost' ? 130 : 110)
                   p.strokeWeight(Math.max(5, responsiveCellSize * 0.18))
                   p.strokeCap(p.ROUND)
                   p.line(centerX, centerY, targetX, targetY)
 
                   p.noStroke()
-                  p.fill(15, 23, 42, 72)
+                  p.fill(editMode === 'cost' ? 37 : 15, editMode === 'cost' ? 99 : 23, editMode === 'cost' ? 235 : 42, 72)
                   p.circle(centerX, centerY, Math.max(10, responsiveCellSize * 0.36))
                   p.circle(targetX, targetY, Math.max(10, responsiveCellSize * 0.36))
                 }
@@ -667,33 +742,43 @@ function MazeCanvas({
               if (x < columnCount - 1 && !cell.walls.right) {
                 const labelX = centerX + responsiveCellSize / 2
                 const labelY = centerY
+                const label = String(cell.costs.right)
+                const labelWidth = Math.max(
+                  responsiveCellSize * 0.28,
+                  p.textWidth(label) + responsiveCellSize * 0.14,
+                )
                 p.noStroke()
                 p.fill(255, 255, 255, isGraphMode ? 230 : 245)
                 p.rect(
-                  labelX - responsiveCellSize * 0.14,
+                  labelX - labelWidth / 2,
                   labelY - responsiveCellSize * 0.14,
-                  responsiveCellSize * 0.28,
+                  labelWidth,
                   responsiveCellSize * 0.28,
                   responsiveCellSize * 0.08,
                 )
                 p.fill('#334155')
-                p.text('1', labelX, labelY + responsiveCellSize * 0.015)
+                p.text(label, labelX, labelY + responsiveCellSize * 0.015)
               }
 
               if (y < rowCount - 1 && !cell.walls.bottom) {
                 const labelX = centerX
                 const labelY = centerY + responsiveCellSize / 2
+                const label = String(cell.costs.bottom)
+                const labelWidth = Math.max(
+                  responsiveCellSize * 0.28,
+                  p.textWidth(label) + responsiveCellSize * 0.14,
+                )
                 p.noStroke()
                 p.fill(255, 255, 255, isGraphMode ? 230 : 245)
                 p.rect(
-                  labelX - responsiveCellSize * 0.14,
+                  labelX - labelWidth / 2,
                   labelY - responsiveCellSize * 0.14,
-                  responsiveCellSize * 0.28,
+                  labelWidth,
                   responsiveCellSize * 0.28,
                   responsiveCellSize * 0.08,
                 )
                 p.fill('#334155')
-                p.text('1', labelX, labelY + responsiveCellSize * 0.015)
+                p.text(label, labelX, labelY + responsiveCellSize * 0.015)
               }
             }
           }
@@ -764,9 +849,11 @@ function MazeCanvas({
     celebrateGoal,
     displayMode,
     editMode,
+    editCostValue,
     editable,
     maze,
     onCellSelect,
+    onEdgeCostSet,
     onWallToggle,
     openSet,
     path,

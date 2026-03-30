@@ -176,3 +176,43 @@ export function setMazeCellKind(
     wallGrid: null,
   }
 }
+
+export function setMazeEdgeCost(
+  state: MazeGenerationState,
+  position: CellPosition,
+  direction: MazeWallDirection,
+  cost: number,
+): MazeGenerationState {
+  const maze = cloneMaze(state.maze)
+  const visited = createVisitedGrid(state.dimensions)
+  const normalizedCost = Math.max(0, Math.trunc(cost))
+  const { x, y } = position
+
+  maze[y][x].costs[direction] = normalizedCost
+
+  if (direction === 'top' && y > 0) {
+    maze[y - 1][x].costs.bottom = normalizedCost
+  }
+  if (direction === 'right' && x < state.dimensions.columns - 1) {
+    maze[y][x + 1].costs.left = normalizedCost
+  }
+  if (direction === 'bottom' && y < state.dimensions.rows - 1) {
+    maze[y + 1][x].costs.top = normalizedCost
+  }
+  if (direction === 'left' && x > 0) {
+    maze[y][x - 1].costs.right = normalizedCost
+  }
+
+  return {
+    ...state,
+    currentCell: null,
+    isComplete: true,
+    extensionSegments: [],
+    maze,
+    pendingPillars: [],
+    pendingWalls: [],
+    stack: [],
+    visited,
+    wallGrid: null,
+  }
+}

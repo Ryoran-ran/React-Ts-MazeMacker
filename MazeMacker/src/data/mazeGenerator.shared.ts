@@ -1,4 +1,4 @@
-import { type MazeCell, type MazeData } from '../components/MazeCanvas'
+import { type MazeCell, type MazeCellCosts, type MazeData } from '../components/MazeCanvas'
 export type { MazeData }
 
 type Direction = 'top' | 'right' | 'bottom' | 'left'
@@ -83,6 +83,15 @@ export const OPPOSITE_DIRECTION: Record<Direction, Direction> = {
   left: 'right',
 }
 
+function createDefaultCellCosts(): MazeCellCosts {
+  return {
+    top: 1,
+    right: 1,
+    bottom: 1,
+    left: 1,
+  }
+}
+
 export function createInitialGrid(dimensions: MazeDimensions): MazeData {
   return Array.from({ length: dimensions.rows }, (_, y) =>
     Array.from({ length: dimensions.columns }, (_, x): MazeCell => ({
@@ -92,6 +101,7 @@ export function createInitialGrid(dimensions: MazeDimensions): MazeData {
           : y === dimensions.rows - 1 && x === dimensions.columns - 1
             ? 'goal'
             : undefined,
+      costs: createDefaultCellCosts(),
       walls: {
         top: true,
         right: true,
@@ -111,6 +121,7 @@ export function createEmptyGrid(dimensions: MazeDimensions): MazeData {
           : y === dimensions.rows - 1 && x === dimensions.columns - 1
             ? 'goal'
             : undefined,
+      costs: createDefaultCellCosts(),
       walls: {
         top: false,
         right: false,
@@ -130,6 +141,7 @@ export function createBorderOnlyGrid(dimensions: MazeDimensions): MazeData {
           : y === dimensions.rows - 1 && x === dimensions.columns - 1
             ? 'goal'
             : undefined,
+      costs: createDefaultCellCosts(),
       walls: {
         top: y === 0,
         right: x === dimensions.columns - 1,
@@ -221,6 +233,7 @@ export function cloneMaze(maze: MazeData): MazeData {
   return maze.map((row) =>
     row.map((cell) => ({
       kind: cell.kind,
+      costs: { ...cell.costs },
       walls: { ...cell.walls },
     })),
   )

@@ -1,4 +1,10 @@
-import { buildPathGrid, getCellNeighbor, shuffleDirections, type MazeSearchState } from './mazeSearch.shared'
+import {
+  buildPathGrid,
+  getCellNeighbor,
+  getMovementCost,
+  shuffleDirections,
+  type MazeSearchState,
+} from './mazeSearch.shared'
 
 export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState {
   const frontier = [...state.frontier]
@@ -6,7 +12,27 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
   const visited = state.visited.map((row) => [...row])
   const parents = state.parents.map((row) => [...row])
   const costs = state.costs.map((row) => [...row])
-  const currentNode = frontier.shift()
+  let currentNode = frontier.shift()
+
+  while (frontier.length > 0 && currentNode) {
+    let bestIndex = -1
+
+    for (let index = 0; index < frontier.length; index += 1) {
+      if (
+        frontier[index].cost <
+        currentNode.cost
+      ) {
+        bestIndex = index
+      }
+    }
+
+    if (bestIndex === -1) {
+      break
+    }
+
+    frontier.unshift(currentNode)
+    currentNode = frontier.splice(bestIndex, 1)[0]
+  }
 
   if (!currentNode) {
     return {
@@ -54,10 +80,17 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
       continue
     }
 
+    const nextCost = currentNode.cost + getMovementCost(state.maze, current, direction)
+
+    if (nextCost >= costs[next.y][next.x]) {
+      continue
+    }
+
+    costs[next.y][next.x] = nextCost
     openSet[next.y][next.x] = true
     parents[next.y][next.x] = current
     frontier.push({
-      cost: currentNode.cost + 1,
+      cost: nextCost,
       parent: current,
       position: next,
     })

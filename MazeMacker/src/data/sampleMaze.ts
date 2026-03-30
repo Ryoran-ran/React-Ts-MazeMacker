@@ -21,6 +21,12 @@ const OPPOSITE_DIRECTION: Record<Direction, Direction> = {
 function createInitialGrid(): MazeData {
   return Array.from({ length: GRID_SIZE }, () =>
     Array.from({ length: GRID_SIZE }, (): MazeCell => ({
+      costs: {
+        top: 1,
+        right: 1,
+        bottom: 1,
+        left: 1,
+      },
       walls: {
         top: true,
         right: true,

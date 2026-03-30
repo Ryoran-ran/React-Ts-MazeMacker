@@ -16,6 +16,7 @@ import {
   completeMazeGeneration,
   createMazeGenerationState,
   setMazeCellKind,
+  setMazeEdgeCost,
   stepMazeGeneration,
   toggleMazeWall,
 } from '../data/mazeGenerator'
@@ -39,6 +40,8 @@ const DEFAULT_SEARCH_INTERVAL_MS = 40
 const MAX_PLAYBACK_INTERVAL_MS = 180
 const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
+const MIN_EDGE_COST = 0
+const MAX_EDGE_COST = 99
 type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
@@ -74,6 +77,16 @@ function normalizeDimension(value: string, fallback: number) {
   }
 
   return Math.max(MIN_DIMENSION, parsed)
+}
+
+function normalizeEdgeCost(value: string, fallback: number) {
+  const parsed = Number.parseInt(value, 10)
+
+  if (Number.isNaN(parsed)) {
+    return fallback
+  }
+
+  return Math.min(MAX_EDGE_COST, Math.max(MIN_EDGE_COST, parsed))
 }
 
 function getPlaybackLabel(intervalMs: number) {
@@ -220,6 +233,7 @@ function MazeScreen() {
     useState<PlayWallVisibilityMode>('all')
   const [mazeTransferText, setMazeTransferText] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
+  const [editCostInput, setEditCostInput] = useState('1')
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
@@ -579,13 +593,24 @@ function MazeScreen() {
   }
 
   function handleCellSelect(position: { x: number; y: number }) {
-    if (editMode === 'wall') {
+    if (editMode === 'wall' || editMode === 'cost') {
       return
     }
 
     const nextKind: MazeCellKind = editMode === 'start' ? 'start' : 'goal'
     setIsPlaying(false)
     setGenerationState((currentState) => setMazeCellKind(currentState, position, nextKind))
+  }
+
+  function handleEdgeCostSet(
+    position: { x: number; y: number },
+    direction: MazeWallDirection,
+    nextCost: number,
+  ) {
+    setIsPlaying(false)
+    setGenerationState((currentState) =>
+      setMazeEdgeCost(currentState, position, direction, nextCost),
+    )
   }
 
   function handleExportMaze() {
@@ -891,8 +916,10 @@ function MazeScreen() {
             }
             cellSize={24}
             editable={activeTab === 'edit'}
+            editCostValue={normalizeEdgeCost(editCostInput, 1)}
             editMode={editMode}
             onCellSelect={handleCellSelect}
+            onEdgeCostSet={handleEdgeCostSet}
             onWallToggle={handleWallToggle}
           />
         )}
@@ -961,6 +988,13 @@ function MazeScreen() {
                     {mazeScreenText.edit.modes.wall}
                   </button>
                   <button
+                    className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setEditMode('cost')}
+                  >
+                    {mazeScreenText.edit.modes.cost}
+                  </button>
+                  <button
                     className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
                     type="button"
                     onClick={() => setEditMode('start')}
@@ -975,6 +1009,20 @@ function MazeScreen() {
                     {mazeScreenText.edit.modes.goal}
                   </button>
                 </div>
+                {editMode === 'cost' ? (
+                  <label className="app__field">
+                    <span className="app__fieldLabel">{mazeScreenText.edit.costLabel}</span>
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_EDGE_COST}
+                      max={MAX_EDGE_COST}
+                      step={1}
+                      value={editCostInput}
+                      onChange={(event) => setEditCostInput(event.target.value)}
+                    />
+                  </label>
+                ) : null}
                 <div className="app__sizeFields">
                   <label className="app__field">
                     <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>

@@ -115,7 +115,12 @@
 
 .app__tabs--edit {
   margin-top: -2px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.app__tabs--edit .app__tab {
+  padding-inline: 6px;
+  font-size: 0.75rem;
 }
 
 .app__tabs--search {
