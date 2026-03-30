@@ -1,5 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import MazeCanvas, {
+  type MazeDisplayMode,
   type MazeEditMode,
   type MazeData,
   type MazeWallDirection,
@@ -210,6 +211,7 @@ function MazeScreen() {
   const [searchIntervalMs, setSearchIntervalMs] = useState(DEFAULT_SEARCH_INTERVAL_MS)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
+  const [displayMode, setDisplayMode] = useState<MazeDisplayMode>('maze')
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
@@ -822,6 +824,7 @@ function MazeScreen() {
                     </p>
                   </header>
                   <MazeCanvas
+                    displayMode={displayMode}
                     maze={generationState.maze}
                     openSet={searchState.openSet}
                     path={searchState.path}
@@ -851,6 +854,7 @@ function MazeScreen() {
               bumpState={playerBumpState}
               celebrateGoal={playerState.isSolved}
               currentFacingDirection={playerState.facingDirection}
+              displayMode={displayMode}
               maze={generationState.maze}
               playHandGuideMode={playHandGuideMode}
               playWallVisibilityMode={playWallVisibilityMode}
@@ -864,6 +868,7 @@ function MazeScreen() {
           </div>
         ) : (
           <MazeCanvas
+            displayMode={displayMode}
             maze={generationState.maze}
             visited={
               generationState.algorithm === 'wallFilling'
@@ -1219,6 +1224,25 @@ function MazeScreen() {
                     ))}
                   </select>
                 </label>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.displayMode.label}</span>
+                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Display mode">
+                    <button
+                      className={`app__tab ${displayMode === 'maze' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setDisplayMode('maze')}
+                    >
+                      {mazeScreenText.displayMode.maze}
+                    </button>
+                    <button
+                      className={`app__tab ${displayMode === 'graph' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setDisplayMode('graph')}
+                    >
+                      {mazeScreenText.displayMode.graph}
+                    </button>
+                  </div>
+                </div>
                 <div className="app__sizeFields">
                   <label className="app__field">
                     <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>

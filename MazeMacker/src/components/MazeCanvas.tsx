@@ -16,6 +16,7 @@ export type MazeCell = {
 export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
 export type MazeEditMode = 'goal' | 'start' | 'wall'
+export type MazeDisplayMode = 'graph' | 'maze'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 
@@ -43,6 +44,7 @@ type BumpState = {
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
+  displayMode?: MazeDisplayMode
   bumpState?: BumpState | null
   celebrateGoal?: boolean
   currentFacingDirection?: MazeWallDirection | null
@@ -66,6 +68,7 @@ type MazeCanvasProps = {
 function MazeCanvas({
   maze,
   cellSize = 24,
+  displayMode = 'maze',
   bumpState = null,
   celebrateGoal = false,
   currentFacingDirection = null,
@@ -317,6 +320,7 @@ function MazeCanvas({
       p.draw = () => {
         p.background(backgroundColor)
         const hoveredEditTarget = hoverTargetRef.current
+        const isGraphMode = displayMode === 'graph'
 
         const revealedWallSet = new Set(
           revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
@@ -410,38 +414,69 @@ function MazeCanvas({
               hoveredEditTarget.x === x &&
               hoveredEditTarget.y === y
             ) {
-              p.noStroke()
-              if (editMode === 'start') {
-                p.fill(37, 99, 235, 52)
-              } else if (editMode === 'goal') {
-                p.fill(220, 38, 38, 52)
-              } else {
-                p.fill(15, 23, 42, 28)
+              if (editMode === 'start' || editMode === 'goal') {
+                p.noStroke()
+                if (editMode === 'start') {
+                  p.fill(37, 99, 235, 52)
+                } else {
+                  p.fill(220, 38, 38, 52)
+                }
+                p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
               }
-              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
 
               if (hoveredEditTarget.direction) {
-                p.stroke(15, 23, 42, 90)
-                p.strokeWeight(Math.max(4, responsiveCellSize * 0.14))
+                if (displayMode === 'maze') {
+                  p.stroke(15, 23, 42, 90)
+                  p.strokeWeight(Math.max(4, responsiveCellSize * 0.14))
 
-                if (hoveredEditTarget.direction === 'top') {
-                  p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
-                } else if (hoveredEditTarget.direction === 'right') {
-                  p.line(
-                    drawX + responsiveCellSize,
-                    drawY,
-                    drawX + responsiveCellSize,
-                    drawY + responsiveCellSize,
-                  )
-                } else if (hoveredEditTarget.direction === 'bottom') {
-                  p.line(
-                    drawX,
-                    drawY + responsiveCellSize,
-                    drawX + responsiveCellSize,
-                    drawY + responsiveCellSize,
-                  )
+                  if (editMode === 'wall') {
+                    p.stroke(15, 23, 42, 120)
+                  }
+
+                  if (hoveredEditTarget.direction === 'top') {
+                    p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
+                  } else if (hoveredEditTarget.direction === 'right') {
+                    p.line(
+                      drawX + responsiveCellSize,
+                      drawY,
+                      drawX + responsiveCellSize,
+                      drawY + responsiveCellSize,
+                    )
+                  } else if (hoveredEditTarget.direction === 'bottom') {
+                    p.line(
+                      drawX,
+                      drawY + responsiveCellSize,
+                      drawX + responsiveCellSize,
+                      drawY + responsiveCellSize,
+                    )
+                  } else {
+                    p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+                  }
                 } else {
-                  p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+                  const centerX = drawX + responsiveCellSize / 2
+                  const centerY = drawY + responsiveCellSize / 2
+                  let targetX = centerX
+                  let targetY = centerY
+
+                  if (hoveredEditTarget.direction === 'top') {
+                    targetY -= responsiveCellSize
+                  } else if (hoveredEditTarget.direction === 'right') {
+                    targetX += responsiveCellSize
+                  } else if (hoveredEditTarget.direction === 'bottom') {
+                    targetY += responsiveCellSize
+                  } else {
+                    targetX -= responsiveCellSize
+                  }
+
+                  p.stroke(15, 23, 42, 110)
+                  p.strokeWeight(Math.max(5, responsiveCellSize * 0.18))
+                  p.strokeCap(p.ROUND)
+                  p.line(centerX, centerY, targetX, targetY)
+
+                  p.noStroke()
+                  p.fill(15, 23, 42, 72)
+                  p.circle(centerX, centerY, Math.max(10, responsiveCellSize * 0.36))
+                  p.circle(targetX, targetY, Math.max(10, responsiveCellSize * 0.36))
                 }
               }
             }
@@ -552,31 +587,33 @@ function MazeCanvas({
               )
             }
 
-            p.stroke(wallColor)
-            p.strokeWeight(2)
-            p.noFill()
+            if (!isGraphMode) {
+              p.stroke(wallColor)
+              p.strokeWeight(2)
+              p.noFill()
 
-            if (cell.walls.top && shouldDrawWall(x, y, 'top')) {
-              p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
-            }
-            if (cell.walls.right && shouldDrawWall(x, y, 'right')) {
-              p.line(
-                drawX + responsiveCellSize,
-                drawY,
-                drawX + responsiveCellSize,
-                drawY + responsiveCellSize,
-              )
-            }
-            if (cell.walls.bottom && shouldDrawWall(x, y, 'bottom')) {
-              p.line(
-                drawX,
-                drawY + responsiveCellSize,
-                drawX + responsiveCellSize,
-                drawY + responsiveCellSize,
-              )
-            }
-            if (cell.walls.left && shouldDrawWall(x, y, 'left')) {
-              p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+              if (cell.walls.top && shouldDrawWall(x, y, 'top')) {
+                p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
+              }
+              if (cell.walls.right && shouldDrawWall(x, y, 'right')) {
+                p.line(
+                  drawX + responsiveCellSize,
+                  drawY,
+                  drawX + responsiveCellSize,
+                  drawY + responsiveCellSize,
+                )
+              }
+              if (cell.walls.bottom && shouldDrawWall(x, y, 'bottom')) {
+                p.line(
+                  drawX,
+                  drawY + responsiveCellSize,
+                  drawX + responsiveCellSize,
+                  drawY + responsiveCellSize,
+                )
+              }
+              if (cell.walls.left && shouldDrawWall(x, y, 'left')) {
+                p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+              }
             }
           }
         }
@@ -614,15 +651,48 @@ function MazeCanvas({
           }
         }
 
-        p.stroke(wallColor)
-        p.strokeWeight(outerBorderWeight)
-        p.noFill()
-        p.rect(
-          outerBorderWeight / 2,
-          outerBorderWeight / 2,
-          canvasWidth - outerBorderWeight,
-          canvasHeight - outerBorderWeight,
-        )
+        if (isGraphMode) {
+          p.stroke('#94a3b8')
+          p.strokeWeight(Math.max(2, responsiveCellSize * 0.1))
+          p.strokeCap(p.ROUND)
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              const cell = maze[y][x]
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+
+              if (x < columnCount - 1 && !cell.walls.right) {
+                p.line(centerX, centerY, centerX + responsiveCellSize, centerY)
+              }
+
+              if (y < rowCount - 1 && !cell.walls.bottom) {
+                p.line(centerX, centerY, centerX, centerY + responsiveCellSize)
+              }
+            }
+          }
+
+          p.noStroke()
+          p.fill('#334155')
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+              p.circle(centerX, centerY, Math.max(5, responsiveCellSize * 0.22))
+            }
+          }
+        } else {
+          p.stroke(wallColor)
+          p.strokeWeight(outerBorderWeight)
+          p.noFill()
+          p.rect(
+            outerBorderWeight / 2,
+            outerBorderWeight / 2,
+            canvasWidth - outerBorderWeight,
+            canvasHeight - outerBorderWeight,
+          )
+        }
       }
     }
 
@@ -644,6 +714,7 @@ function MazeCanvas({
     currentCellSpan.rows,
     currentFacingDirection,
     celebrateGoal,
+    displayMode,
     editMode,
     editable,
     maze,

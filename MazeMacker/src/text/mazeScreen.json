@@ -41,6 +41,11 @@
       "wallExtending": "壁伸ばし法"
     }
   },
+  "displayMode": {
+    "label": "表示モード",
+    "maze": "迷路",
+    "graph": "グラフ"
+  },
   "edit": {
     "hint": "迷路をクリックします。",
     "modes": {
