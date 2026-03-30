@@ -581,6 +581,39 @@ function MazeCanvas({
           }
         }
 
+        if (path) {
+          p.stroke('#16a34a')
+          p.strokeWeight(Math.max(3, responsiveCellSize * 0.18))
+          p.strokeCap(p.ROUND)
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              if (!path[y]?.[x]) {
+                continue
+              }
+
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+
+              if (
+                x < columnCount - 1 &&
+                path[y]?.[x + 1] &&
+                !maze[y][x].walls.right
+              ) {
+                p.line(centerX, centerY, centerX + responsiveCellSize, centerY)
+              }
+
+              if (
+                y < rowCount - 1 &&
+                path[y + 1]?.[x] &&
+                !maze[y][x].walls.bottom
+              ) {
+                p.line(centerX, centerY, centerX, centerY + responsiveCellSize)
+              }
+            }
+          }
+        }
+
         p.stroke(wallColor)
         p.strokeWeight(outerBorderWeight)
         p.noFill()
