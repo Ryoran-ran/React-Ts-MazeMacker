@@ -202,6 +202,16 @@
   white-space: nowrap;
 }
 
+.app__fieldHeaderActions--spread {
+  justify-content: stretch;
+  white-space: normal;
+}
+
+.app__fieldHeaderActions--spread .app__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .app__fieldLabel {
   font-size: 0.875rem;
   font-weight: 700;

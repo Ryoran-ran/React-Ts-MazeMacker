@@ -16,6 +16,7 @@ import {
   completeMazeGeneration,
   createMazeGenerationState,
   setMazeCellKind,
+  setAllMazeEdgeCosts,
   setMazeEdgeCost,
   stepMazeGeneration,
   toggleMazeWall,
@@ -661,6 +662,13 @@ function MazeScreen() {
     )
   }
 
+  function handleApplyAllEdgeCosts() {
+    const nextCost = normalizeEdgeCost(editCostInput, 1)
+
+    setIsPlaying(false)
+    setGenerationState((currentState) => setAllMazeEdgeCosts(currentState, nextCost))
+  }
+
   function handleExportMaze() {
     const payload = buildMazeTransferPayload(
       generationState.maze,
@@ -1062,18 +1070,27 @@ function MazeScreen() {
                   </button>
                 </div>
                 {editMode === 'cost' ? (
-                  <label className="app__field">
+                  <div className="app__field">
                     <span className="app__fieldLabel">{mazeScreenText.edit.costLabel}</span>
-                    <input
-                      className="app__input"
-                      type="number"
-                      min={MIN_EDGE_COST}
-                      max={MAX_EDGE_COST}
-                      step={1}
-                      value={editCostInput}
-                      onChange={(event) => setEditCostInput(event.target.value)}
-                    />
-                  </label>
+                    <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                      <input
+                        className="app__input"
+                        type="number"
+                        min={MIN_EDGE_COST}
+                        max={MAX_EDGE_COST}
+                        step={1}
+                        value={editCostInput}
+                        onChange={(event) => setEditCostInput(event.target.value)}
+                      />
+                      <button
+                        className="app__button app__button--compact app__button--secondary"
+                        type="button"
+                        onClick={handleApplyAllEdgeCosts}
+                      >
+                        {mazeScreenText.edit.applyAllCosts}
+                      </button>
+                    </div>
+                  </div>
                 ) : null}
                 <div className="app__sizeFields">
                   <label className="app__field">

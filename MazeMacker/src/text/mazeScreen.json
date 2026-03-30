@@ -55,6 +55,7 @@
   },
   "edit": {
     "hint": "迷路をクリックします。",
+    "applyAllCosts": "一括反映",
     "costLabel": "設定コスト",
     "modes": {
       "wall": "壁",
