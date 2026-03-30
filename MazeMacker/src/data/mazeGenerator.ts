@@ -1,3 +1,4 @@
+import { createKruskalState, stepKruskalMazeGeneration } from './mazeGenerator.kruskal'
 import { createPrimState, stepPrimMazeGeneration } from './mazeGenerator.prim'
 import { createDiggingState, stepDiggingMazeGeneration } from './mazeGenerator.digging'
 import {
@@ -41,6 +42,7 @@ export const MAZE_ALGORITHM_OPTIONS: Array<{
   label: string
   value: MazeAlgorithm
 }> = [
+  { label: 'Kruskal法', value: 'kruskal' },
   { label: 'Prim法', value: 'prim' },
   { label: '穴掘り法', value: 'digging' },
   { label: '棒倒し法', value: 'stickFalling' },
@@ -53,6 +55,10 @@ export function createMazeGenerationState(
   algorithm: MazeAlgorithm = 'digging',
   seed: number | null = DEFAULT_MAZE_SEED,
 ): MazeGenerationState {
+  if (algorithm === 'kruskal') {
+    return createKruskalState(dimensions, seed)
+  }
+
   if (algorithm === 'prim') {
     return createPrimState(dimensions, seed)
   }
@@ -75,6 +81,10 @@ export function createMazeGenerationState(
 export function stepMazeGeneration(
   state: MazeGenerationState,
 ): MazeGenerationState {
+  if (state.algorithm === 'kruskal') {
+    return stepKruskalMazeGeneration(state)
+  }
+
   if (state.algorithm === 'prim') {
     return stepPrimMazeGeneration(state)
   }

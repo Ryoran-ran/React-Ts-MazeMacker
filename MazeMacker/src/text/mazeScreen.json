@@ -35,6 +35,7 @@
   "algorithm": {
     "label": "生成方式",
     "options": {
+      "kruskal": "Kruskal法",
       "prim": "Prim法",
       "digging": "穴掘り法",
       "stickFalling": "棒倒し法",

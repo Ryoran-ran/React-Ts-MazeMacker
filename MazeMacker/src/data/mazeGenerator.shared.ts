@@ -39,6 +39,7 @@ export type GridPosition = {
 }
 
 export type MazeAlgorithm =
+  | 'kruskal'
   | 'prim'
   | 'digging'
   | 'stickFalling'
