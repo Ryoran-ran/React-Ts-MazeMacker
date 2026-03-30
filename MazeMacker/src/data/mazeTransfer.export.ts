@@ -21,11 +21,13 @@ export function buildMazeTransferPayload(
   maze: MazeData,
   dimensions: MazeDimensions,
   algorithm: MazeAlgorithm,
+  seed?: number | null,
 ): MazeTransferPayload {
   return {
     algorithm,
     dimensions,
     maze,
+    ...(seed === null || seed === undefined ? {} : { seed }),
   }
 }
 

@@ -14,8 +14,10 @@ import {
 } from './mazeGenerator.wallExtending'
 import {
   cloneMaze,
+  DEFAULT_MAZE_SEED,
   createVisitedGrid,
   DEFAULT_MAZE_DIMENSIONS,
+  normalizeMazeSeed,
   type CellPosition,
   type MazeAlgorithm,
   type MazeCellKind,
@@ -26,6 +28,8 @@ import {
 
 export {
   DEFAULT_MAZE_DIMENSIONS,
+  DEFAULT_MAZE_SEED,
+  normalizeMazeSeed,
   type MazeAlgorithm,
   type MazeCellKind,
   type MazeDimensions,
@@ -47,24 +51,25 @@ export const MAZE_ALGORITHM_OPTIONS: Array<{
 export function createMazeGenerationState(
   dimensions: MazeDimensions = DEFAULT_MAZE_DIMENSIONS,
   algorithm: MazeAlgorithm = 'digging',
+  seed: number | null = DEFAULT_MAZE_SEED,
 ): MazeGenerationState {
   if (algorithm === 'prim') {
-    return createPrimState(dimensions)
+    return createPrimState(dimensions, seed)
   }
 
   if (algorithm === 'stickFalling') {
-    return createStickFallingState(dimensions)
+    return createStickFallingState(dimensions, seed)
   }
 
   if (algorithm === 'wallFilling') {
-    return createWallFillingState(dimensions)
+    return createWallFillingState(dimensions, seed)
   }
 
   if (algorithm === 'wallExtending') {
-    return createWallExtendingState(dimensions)
+    return createWallExtendingState(dimensions, seed)
   }
 
-  return createDiggingState(dimensions)
+  return createDiggingState(dimensions, seed)
 }
 
 export function stepMazeGeneration(

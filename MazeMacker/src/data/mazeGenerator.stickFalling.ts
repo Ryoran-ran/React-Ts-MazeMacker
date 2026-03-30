@@ -3,6 +3,7 @@ import {
   createEmptyGrid,
   createVisitedGrid,
   DIRECTION_OFFSETS,
+  normalizeMazeSeed,
   shuffleDirections,
   type CellPosition,
   type MazeDimensions,
@@ -91,10 +92,12 @@ function markStickFallingVisited(
 
 export function createStickFallingState(
   dimensions: MazeDimensions,
+  seed: number | null,
 ): MazeGenerationState {
   const wallGrid = createStickFallingWallGrid(dimensions)
   const visited = createVisitedGrid(dimensions)
   const pendingPillars = createStickFallingPillars(dimensions)
+  const normalizedSeed = seed === null ? null : normalizeMazeSeed(seed)
 
   return {
     algorithm: 'stickFalling',
@@ -105,6 +108,8 @@ export function createStickFallingState(
     maze: convertWallGridToMaze(dimensions, wallGrid),
     pendingPillars,
     pendingWalls: [],
+    rngState: normalizedSeed,
+    seed: normalizedSeed,
     stack: [],
     stepCount: 0,
     visited,
@@ -133,10 +138,16 @@ export function stepStickFallingMazeGeneration(
 
   const wallGrid = state.wallGrid.map((row) => [...row])
   const visited = cloneVisited(state.visited)
+  let rngState = state.rngState
   const candidateDirections =
-    currentPillar.gridY === 2
-      ? shuffleDirections()
-      : shuffleDirections().filter((direction) => direction !== 'top')
+    (() => {
+      const shuffledDirections = shuffleDirections(rngState)
+      rngState = shuffledDirections.rngState
+
+      return currentPillar.gridY === 2
+        ? shuffledDirections.directions
+        : shuffledDirections.directions.filter((direction) => direction !== 'top')
+    })()
 
   const availableDirections = candidateDirections.filter((direction) => {
     const { dx, dy } = DIRECTION_OFFSETS[direction]
@@ -170,6 +181,8 @@ export function stepStickFallingMazeGeneration(
     maze: convertWallGridToMaze(state.dimensions, wallGrid),
     pendingPillars,
     pendingWalls: [],
+    rngState,
+    seed: state.seed,
     stack: [],
     stepCount: state.stepCount + 1,
     visited,

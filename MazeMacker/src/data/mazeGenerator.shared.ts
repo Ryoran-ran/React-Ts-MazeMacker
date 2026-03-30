@@ -54,6 +54,8 @@ export type MazeGenerationState = {
   extensionSegments: GridPosition[]
   pendingPillars: PillarEntry[]
   pendingWalls: PendingWallEntry[]
+  rngState: number | null
+  seed: number | null
   stack: StackEntry[]
   stepCount: number
   visited: boolean[][]
@@ -64,6 +66,8 @@ export const DEFAULT_MAZE_DIMENSIONS: MazeDimensions = {
   columns: 20,
   rows: 20,
 }
+
+export const DEFAULT_MAZE_SEED = 12345
 
 export const DIRECTION_OFFSETS: Record<Direction, { dx: number; dy: number }> = {
   top: { dx: 0, dy: -1 },
@@ -136,17 +140,77 @@ export function createBorderOnlyGrid(dimensions: MazeDimensions): MazeData {
   )
 }
 
-export function shuffleDirections(): Direction[] {
+export function normalizeMazeSeed(seed: number) {
+  const normalized = Math.trunc(seed) >>> 0
+
+  return normalized === 0 ? 1 : normalized
+}
+
+export function nextRandomState(rngState: number) {
+  let nextState = rngState >>> 0
+  nextState ^= nextState << 13
+  nextState ^= nextState >>> 17
+  nextState ^= nextState << 5
+
+  return nextState >>> 0
+}
+
+export function randomInt(max: number, rngState: number | null) {
+  if (max <= 0) {
+    return { rngState, value: 0 }
+  }
+
+  if (rngState === null) {
+    return {
+      rngState: null,
+      value: Math.floor(Math.random() * max),
+    }
+  }
+
+  const nextState = nextRandomState(rngState)
+
+  return {
+    rngState: nextState,
+    value: Math.floor((nextState / 0x100000000) * max),
+  }
+}
+
+export function shuffleDirections(rngState: number | null): {
+  directions: Direction[]
+  rngState: number | null
+} {
   const directions: Direction[] = ['top', 'right', 'bottom', 'left']
+  let nextState = rngState
 
   for (let index = directions.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1))
+    const randomResult = randomInt(index + 1, nextState)
+    const swapIndex = randomResult.value
+    nextState = randomResult.rngState
     const current = directions[index]
     directions[index] = directions[swapIndex]
     directions[swapIndex] = current
   }
 
-  return directions
+  return { directions, rngState: nextState }
+}
+
+export function shuffleEntries<T>(entries: T[], rngState: number | null) {
+  const nextEntries = [...entries]
+  let nextState = rngState
+
+  for (let index = nextEntries.length - 1; index > 0; index -= 1) {
+    const randomResult = randomInt(index + 1, nextState)
+    const swapIndex = randomResult.value
+    nextState = randomResult.rngState
+    const current = nextEntries[index]
+    nextEntries[index] = nextEntries[swapIndex]
+    nextEntries[swapIndex] = current
+  }
+
+  return {
+    entries: nextEntries,
+    rngState: nextState,
+  }
 }
 
 export function isInBounds(x: number, y: number, dimensions: MazeDimensions) {

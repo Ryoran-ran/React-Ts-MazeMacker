@@ -6,7 +6,9 @@ import MazeCanvas, {
 } from '../components/MazeCanvas'
 import {
   DEFAULT_MAZE_DIMENSIONS,
+  DEFAULT_MAZE_SEED,
   MAZE_ALGORITHM_OPTIONS,
+  normalizeMazeSeed,
   type MazeAlgorithm,
   type MazeCellKind,
   type MazeDimensions,
@@ -77,6 +79,10 @@ function getPlaybackLabel(intervalMs: number) {
   return `${Math.round(1000 / intervalMs)} fps`
 }
 
+function createRandomSeed() {
+  return Math.floor(Date.now() % 2147483647)
+}
+
 function createSearchStateMap(
   maze: MazeSearchState['maze'],
 ): SearchStateMap {
@@ -86,6 +92,7 @@ function createSearchStateMap(
     deadEndFilling: createMazeSearchState(maze, 'deadEndFilling'),
     dfs: createMazeSearchState(maze, 'dfs'),
     goalPruning: createMazeSearchState(maze, 'goalPruning'),
+    humanAstar: createMazeSearchState(maze, 'humanAstar'),
     leftHand: createMazeSearchState(maze, 'leftHand'),
     tremaux: createMazeSearchState(maze, 'tremaux'),
     rightHand: createMazeSearchState(maze, 'rightHand'),
@@ -184,13 +191,17 @@ function MazeScreen() {
     MazeSearchAlgorithm[]
   >(['astar'])
   const [generationState, setGenerationState] = useState(() =>
-    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging'),
+    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED),
   )
   const [searchStates, setSearchStates] = useState<SearchStateMap>(() =>
-    createSearchStateMap(createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze),
+    createSearchStateMap(
+      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED).maze,
+    ),
   )
   const [playerState, setPlayerState] = useState<PlayerState>(() =>
-    createPlayerState(createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging').maze),
+    createPlayerState(
+      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED).maze,
+    ),
   )
   const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -210,6 +221,8 @@ function MazeScreen() {
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
   })
+  const [seedInput, setSeedInput] = useState(String(DEFAULT_MAZE_SEED))
+  const [useSeed, setUseSeed] = useState(true)
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
@@ -381,26 +394,44 @@ function MazeScreen() {
     }
   }
 
+  function buildSeedFromInput() {
+    const parsed = Number.parseInt(seedInput, 10)
+
+    if (Number.isNaN(parsed)) {
+      return generationState.seed
+    }
+
+    return normalizeMazeSeed(parsed)
+  }
+
+  function resolveGenerationSeed() {
+    return useSeed ? buildSeedFromInput() : null
+  }
+
   function handleApplyDimensions() {
     const nextDimensions = buildDimensionsFromInputs()
+    const nextSeed = resolveGenerationSeed()
 
     setIsPlaying(false)
     setDimensionInputs({
       columns: String(nextDimensions.columns),
       rows: String(nextDimensions.rows),
     })
-    setGenerationState(createMazeGenerationState(nextDimensions, selectedAlgorithm))
+    setSeedInput(String(nextSeed))
+    setGenerationState(createMazeGenerationState(nextDimensions, selectedAlgorithm, nextSeed))
   }
 
   function handleReset() {
     const nextDimensions = buildDimensionsFromInputs()
+    const nextSeed = resolveGenerationSeed()
 
     setIsPlaying(false)
     setDimensionInputs({
       columns: String(nextDimensions.columns),
       rows: String(nextDimensions.rows),
     })
-    setGenerationState(createMazeGenerationState(nextDimensions, selectedAlgorithm))
+    setSeedInput(String(nextSeed))
+    setGenerationState(createMazeGenerationState(nextDimensions, selectedAlgorithm, nextSeed))
   }
 
   function handleSearchReset() {
@@ -415,8 +446,9 @@ function MazeScreen() {
 
   function handlePlayGenerate() {
     const nextDimensions = buildDimensionsFromInputs()
+    const nextSeed = resolveGenerationSeed()
     const nextState = completeMazeGeneration(
-      createMazeGenerationState(nextDimensions, selectedAlgorithm),
+      createMazeGenerationState(nextDimensions, selectedAlgorithm, nextSeed),
     )
 
     setIsPlaying(false)
@@ -424,15 +456,18 @@ function MazeScreen() {
       columns: String(nextDimensions.columns),
       rows: String(nextDimensions.rows),
     })
+    setSeedInput(String(nextSeed))
     setGenerationState(nextState)
   }
 
   function handleAlgorithmChange(nextAlgorithm: MazeAlgorithm) {
     const nextDimensions = buildDimensionsFromInputs()
+    const nextSeed = resolveGenerationSeed()
 
     setIsPlaying(false)
     setSelectedAlgorithm(nextAlgorithm)
-    setGenerationState(createMazeGenerationState(nextDimensions, nextAlgorithm))
+    setSeedInput(String(nextSeed))
+    setGenerationState(createMazeGenerationState(nextDimensions, nextAlgorithm, nextSeed))
   }
 
   function handleSearchAlgorithmToggle(nextAlgorithm: MazeSearchAlgorithm) {
@@ -555,6 +590,7 @@ function MazeScreen() {
       generationState.maze,
       generationState.dimensions,
       selectedAlgorithm,
+      generationState.seed,
     )
     const json = downloadMazeTransferPayload(
       payload,
@@ -582,17 +618,19 @@ function MazeScreen() {
         columns: importedPayload.maze[0].length,
         rows: importedPayload.maze.length,
       }
+      const nextSeed = importedPayload.seed ?? (useSeed ? buildSeedFromInput() : null)
 
       setIsPlaying(false)
       setIsSearchPlaying(false)
       setSelectedAlgorithm(nextAlgorithm)
       setMazeTransferText(mazeTransferJson)
+      setSeedInput(String(nextSeed))
       setDimensionInputs({
         columns: String(nextDimensions.columns),
         rows: String(nextDimensions.rows),
       })
       setGenerationState({
-        ...createMazeGenerationState(nextDimensions, nextAlgorithm),
+        ...createMazeGenerationState(nextDimensions, nextAlgorithm, nextSeed),
         currentCell: null,
         isComplete: true,
         maze: importedPayload.maze,
@@ -632,6 +670,10 @@ function MazeScreen() {
     } finally {
       event.target.value = ''
     }
+  }
+
+  function handleRandomizeSeed() {
+    setSeedInput(String(createRandomSeed()))
   }
 
   function renderTopActions() {
@@ -1210,6 +1252,45 @@ function MazeScreen() {
                       }
                     />
                   </label>
+                </div>
+                <div className="app__field">
+                  <div className="app__fieldHeader">
+                    <span className="app__fieldLabel">{mazeScreenText.seed.label}</span>
+                    <button
+                      className="app__button app__button--compact"
+                      type="button"
+                      onClick={handleRandomizeSeed}
+                    >
+                      {mazeScreenText.seed.randomize}
+                    </button>
+                  </div>
+                  <input
+                    className="app__input"
+                    type="number"
+                    step={1}
+                    value={seedInput}
+                    disabled={!useSeed}
+                    onChange={(event) => setSeedInput(event.target.value)}
+                  />
+                </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.seed.modeLabel}</span>
+                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Seed mode">
+                    <button
+                      className={`app__tab ${useSeed ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setUseSeed(true)}
+                    >
+                      {mazeScreenText.seed.enabled}
+                    </button>
+                    <button
+                      className={`app__tab ${!useSeed ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setUseSeed(false)}
+                    >
+                      {mazeScreenText.seed.disabled}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

@@ -5,4 +5,5 @@ export type MazeTransferPayload = {
   algorithm?: MazeAlgorithm
   dimensions?: MazeDimensions
   maze: MazeData
+  seed?: number
 }

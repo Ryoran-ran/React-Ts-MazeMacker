@@ -1,6 +1,8 @@
 import {
   createEmptyGrid,
   createVisitedGrid,
+  normalizeMazeSeed,
+  shuffleEntries,
   shuffleDirections,
   type CellPosition,
   type GridPosition,
@@ -24,7 +26,7 @@ function createWallExtendingWallGrid(dimensions: MazeDimensions): WallGrid {
   )
 }
 
-function createExtensionSeeds(dimensions: MazeDimensions): PillarEntry[] {
+function createExtensionSeeds(dimensions: MazeDimensions, rngState: number | null) {
   const seeds: PillarEntry[] = []
 
   for (let y = 2; y < dimensions.rows * 2; y += 2) {
@@ -40,7 +42,7 @@ function createExtensionSeeds(dimensions: MazeDimensions): PillarEntry[] {
     }
   }
 
-  return seeds.sort(() => Math.random() - 0.5)
+  return shuffleEntries(seeds, rngState)
 }
 
 function convertWallGridToMaze(
@@ -160,9 +162,10 @@ function buildExtensionSegments(
   wallGrid: WallGrid,
   seed: PillarEntry,
   dimensions: MazeDimensions,
-): GridPosition[] | null {
+  rngState: number | null,
+): { extensionSegments: GridPosition[] | null; rngState: number | null } {
   if (wallGrid[seed.gridY][seed.gridX]) {
-    return null
+    return { extensionSegments: null, rngState }
   }
 
   let currentX = seed.gridX
@@ -171,6 +174,7 @@ function buildExtensionSegments(
   let previousY = -1
   const candidateSegments: GridPosition[] = [{ x: currentX, y: currentY }]
   const pathVisited = new Set<string>([`${currentX},${currentY}`])
+  let nextState = rngState
 
   while (true) {
     const unconnectedMoves: Array<{
@@ -186,7 +190,10 @@ function buildExtensionSegments(
       nextY: number
     }> = []
 
-    for (const direction of shuffleDirections()) {
+    const shuffledDirections = shuffleDirections(nextState)
+    nextState = shuffledDirections.rngState
+
+    for (const direction of shuffledDirections.directions) {
       let nextX = currentX
       let nextY = currentY
 
@@ -228,7 +235,7 @@ function buildExtensionSegments(
     const move = unconnectedMoves[0] ?? connectingMoves[0]
 
     if (!move) {
-      return null
+      return { extensionSegments: null, rngState: nextState }
     }
 
     candidateSegments.push({ x: move.intermediateX, y: move.intermediateY })
@@ -243,7 +250,10 @@ function buildExtensionSegments(
 
       const nextMaze = convertWallGridToMaze(dimensions, nextWallGrid)
 
-      return isMazeFullyConnected(nextMaze, dimensions) ? candidateSegments : null
+      return {
+        extensionSegments: isMazeFullyConnected(nextMaze, dimensions) ? candidateSegments : null,
+        rngState: nextState,
+      }
     }
 
     previousX = currentX
@@ -257,8 +267,11 @@ function buildExtensionSegments(
 
 export function createWallExtendingState(
   dimensions: MazeDimensions,
+  seed: number | null,
 ): MazeGenerationState {
   const wallGrid = createWallExtendingWallGrid(dimensions)
+  const normalizedSeed = seed === null ? null : normalizeMazeSeed(seed)
+  const shuffledSeeds = createExtensionSeeds(dimensions, normalizedSeed)
 
   return {
     algorithm: 'wallExtending',
@@ -267,8 +280,10 @@ export function createWallExtendingState(
     isComplete: false,
     extensionSegments: [],
     maze: convertWallGridToMaze(dimensions, wallGrid),
-    pendingPillars: createExtensionSeeds(dimensions),
+    pendingPillars: shuffledSeeds.entries,
     pendingWalls: [],
+    rngState: shuffledSeeds.rngState,
+    seed: normalizedSeed,
     stack: [],
     stepCount: 0,
     visited: createVisitedGrid(dimensions),
@@ -286,6 +301,7 @@ export function stepWallExtendingMazeGeneration(
   const wallGrid = state.wallGrid.map((row) => [...row])
   const visited = state.visited.map((row) => [...row])
   const pendingPillars = state.pendingPillars.slice()
+  let rngState = state.rngState
 
   if (state.extensionSegments.length > 0) {
     const [nextSegment, ...remainingSegments] = state.extensionSegments
@@ -301,6 +317,8 @@ export function stepWallExtendingMazeGeneration(
       maze: convertWallGridToMaze(state.dimensions, wallGrid),
       pendingPillars,
       pendingWalls: [],
+      rngState,
+      seed: state.seed,
       stack: [],
       stepCount: state.stepCount + 1,
       visited,
@@ -314,7 +332,9 @@ export function stepWallExtendingMazeGeneration(
     if (!seed) {
       continue
     }
-    const extensionSegments = buildExtensionSegments(wallGrid, seed, state.dimensions)
+    const extensionResult = buildExtensionSegments(wallGrid, seed, state.dimensions, rngState)
+    const extensionSegments = extensionResult.extensionSegments
+    rngState = extensionResult.rngState
 
     if (!extensionSegments || extensionSegments.length === 0) {
       continue
@@ -332,6 +352,8 @@ export function stepWallExtendingMazeGeneration(
       maze: convertWallGridToMaze(state.dimensions, wallGrid),
       pendingPillars,
       pendingWalls: [],
+      rngState,
+      seed: state.seed,
       stack: [],
       stepCount: state.stepCount + 1,
       visited,
