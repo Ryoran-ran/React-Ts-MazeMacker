@@ -94,6 +94,7 @@
     },
     "status": {
       "algorithm": "search",
+      "cost": "cost",
       "steps": "steps",
       "solved": "solved"
     }

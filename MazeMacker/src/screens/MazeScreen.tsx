@@ -198,6 +198,54 @@ function getAdjacentPosition(
   return position.x > 0 ? { x: position.x - 1, y: position.y } : null
 }
 
+function getDirectionBetween(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): MazeWallDirection | null {
+  if (to.x === from.x && to.y === from.y - 1) {
+    return 'top'
+  }
+  if (to.x === from.x + 1 && to.y === from.y) {
+    return 'right'
+  }
+  if (to.x === from.x && to.y === from.y + 1) {
+    return 'bottom'
+  }
+  if (to.x === from.x - 1 && to.y === from.y) {
+    return 'left'
+  }
+
+  return null
+}
+
+function getSolvedPathCost(searchState: MazeSearchState) {
+  if (!searchState.isSolved) {
+    return null
+  }
+
+  let totalCost = 0
+  let current = searchState.goal
+
+  while (!(current.x === searchState.start.x && current.y === searchState.start.y)) {
+    const parent = searchState.parents[current.y][current.x]
+
+    if (!parent) {
+      return null
+    }
+
+    const direction = getDirectionBetween(parent, current)
+
+    if (!direction) {
+      return null
+    }
+
+    totalCost += searchState.maze[parent.y][parent.x].costs[direction]
+    current = parent
+  }
+
+  return totalCost
+}
+
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
@@ -837,6 +885,7 @@ function MazeScreen() {
           <div className="app__searchPanels">
             {selectedSearchAlgorithms.map((algorithm) => {
               const searchState = searchStates[algorithm]
+              const solvedPathCost = getSolvedPathCost(searchState)
 
               return (
                 <section key={algorithm} className="app__searchPanel">
@@ -844,6 +893,9 @@ function MazeScreen() {
                     <h2>{mazeScreenText.search.options[algorithm]}</h2>
                     <p>
                       {mazeScreenText.search.status.steps}: {searchState.stepCount}
+                      {solvedPathCost !== null
+                        ? ` / ${mazeScreenText.search.status.cost}: ${solvedPathCost}`
+                        : ''}
                       {isSearchPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
                       {searchState.isSolved ? ` / ${mazeScreenText.search.status.solved}` : ''}
                       {searchState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
