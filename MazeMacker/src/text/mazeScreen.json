@@ -2,6 +2,7 @@
   "title": "Maze Renderer",
   "tabs": {
     "controls": "迷路",
+    "display": "表示",
     "edit": "編集",
     "search": "探索",
     "play": "遊ぶ"
@@ -45,6 +46,11 @@
     "label": "表示モード",
     "maze": "迷路",
     "graph": "グラフ"
+  },
+  "graphEdgeCosts": {
+    "label": "辺コスト",
+    "visible": "表示する",
+    "hidden": "隠す"
   },
   "edit": {
     "hint": "迷路をクリックします。",

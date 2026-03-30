@@ -45,6 +45,7 @@ type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
   displayMode?: MazeDisplayMode
+  showGraphEdgeCosts?: boolean
   bumpState?: BumpState | null
   celebrateGoal?: boolean
   currentFacingDirection?: MazeWallDirection | null
@@ -69,6 +70,7 @@ function MazeCanvas({
   maze,
   cellSize = 24,
   displayMode = 'maze',
+  showGraphEdgeCosts = false,
   bumpState = null,
   celebrateGoal = false,
   currentFacingDirection = null,
@@ -651,6 +653,52 @@ function MazeCanvas({
           }
         }
 
+        if (showGraphEdgeCosts) {
+          p.textAlign(p.CENTER, p.CENTER)
+          p.textStyle(p.BOLD)
+          p.textSize(Math.max(8, responsiveCellSize * 0.24))
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              const cell = maze[y][x]
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+
+              if (x < columnCount - 1 && !cell.walls.right) {
+                const labelX = centerX + responsiveCellSize / 2
+                const labelY = centerY
+                p.noStroke()
+                p.fill(255, 255, 255, isGraphMode ? 230 : 245)
+                p.rect(
+                  labelX - responsiveCellSize * 0.14,
+                  labelY - responsiveCellSize * 0.14,
+                  responsiveCellSize * 0.28,
+                  responsiveCellSize * 0.28,
+                  responsiveCellSize * 0.08,
+                )
+                p.fill('#334155')
+                p.text('1', labelX, labelY + responsiveCellSize * 0.015)
+              }
+
+              if (y < rowCount - 1 && !cell.walls.bottom) {
+                const labelX = centerX
+                const labelY = centerY + responsiveCellSize / 2
+                p.noStroke()
+                p.fill(255, 255, 255, isGraphMode ? 230 : 245)
+                p.rect(
+                  labelX - responsiveCellSize * 0.14,
+                  labelY - responsiveCellSize * 0.14,
+                  responsiveCellSize * 0.28,
+                  responsiveCellSize * 0.28,
+                  responsiveCellSize * 0.08,
+                )
+                p.fill('#334155')
+                p.text('1', labelX, labelY + responsiveCellSize * 0.015)
+              }
+            }
+          }
+        }
+
         if (isGraphMode) {
           p.stroke('#94a3b8')
           p.strokeWeight(Math.max(2, responsiveCellSize * 0.1))
@@ -726,6 +774,7 @@ function MazeCanvas({
     playHandGuideMode,
     revealedWalls,
     rowCount,
+    showGraphEdgeCosts,
     showVisitedWalls,
     visited,
     wallColor,

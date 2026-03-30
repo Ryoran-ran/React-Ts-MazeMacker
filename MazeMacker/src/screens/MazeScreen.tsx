@@ -39,7 +39,7 @@ const DEFAULT_SEARCH_INTERVAL_MS = 40
 const MAX_PLAYBACK_INTERVAL_MS = 180
 const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
-type SidebarTab = 'controls' | 'edit' | 'play' | 'search'
+type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
@@ -212,6 +212,7 @@ function MazeScreen() {
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
   const [displayMode, setDisplayMode] = useState<MazeDisplayMode>('maze')
+  const [showGraphEdgeCosts, setShowGraphEdgeCosts] = useState(false)
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
@@ -825,6 +826,7 @@ function MazeScreen() {
                   </header>
                   <MazeCanvas
                     displayMode={displayMode}
+                    showGraphEdgeCosts={showGraphEdgeCosts}
                     maze={generationState.maze}
                     openSet={searchState.openSet}
                     path={searchState.path}
@@ -855,6 +857,7 @@ function MazeScreen() {
               celebrateGoal={playerState.isSolved}
               currentFacingDirection={playerState.facingDirection}
               displayMode={displayMode}
+              showGraphEdgeCosts={showGraphEdgeCosts}
               maze={generationState.maze}
               playHandGuideMode={playHandGuideMode}
               playWallVisibilityMode={playWallVisibilityMode}
@@ -869,6 +872,7 @@ function MazeScreen() {
         ) : (
           <MazeCanvas
             displayMode={displayMode}
+            showGraphEdgeCosts={showGraphEdgeCosts}
             maze={generationState.maze}
             visited={
               generationState.algorithm === 'wallFilling'
@@ -913,6 +917,15 @@ function MazeScreen() {
             onClick={() => handleTabChange('edit')}
           >
             {mazeScreenText.tabs.edit}
+          </button>
+          <button
+            className={`app__tab ${activeTab === 'display' ? 'app__tab--active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'display'}
+            onClick={() => handleTabChange('display')}
+          >
+            {mazeScreenText.tabs.display}
           </button>
           <button
             className={`app__tab ${activeTab === 'search' ? 'app__tab--active' : ''}`}
@@ -1027,6 +1040,49 @@ function MazeScreen() {
                       setToast(null)
                     }}
                   />
+                </div>
+              </div>
+            </>
+          ) : activeTab === 'display' ? (
+            <>
+              <div className="app__controlsBody">
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.displayMode.label}</span>
+                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Display mode">
+                    <button
+                      className={`app__tab ${displayMode === 'maze' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setDisplayMode('maze')}
+                    >
+                      {mazeScreenText.displayMode.maze}
+                    </button>
+                    <button
+                      className={`app__tab ${displayMode === 'graph' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setDisplayMode('graph')}
+                    >
+                      {mazeScreenText.displayMode.graph}
+                    </button>
+                  </div>
+                </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
+                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">
+                    <button
+                      className={`app__tab ${showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowGraphEdgeCosts(true)}
+                    >
+                      {mazeScreenText.graphEdgeCosts.visible}
+                    </button>
+                    <button
+                      className={`app__tab ${!showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowGraphEdgeCosts(false)}
+                    >
+                      {mazeScreenText.graphEdgeCosts.hidden}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>
@@ -1224,25 +1280,6 @@ function MazeScreen() {
                     ))}
                   </select>
                 </label>
-                <div className="app__field">
-                  <span className="app__fieldLabel">{mazeScreenText.displayMode.label}</span>
-                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Display mode">
-                    <button
-                      className={`app__tab ${displayMode === 'maze' ? 'app__tab--active' : ''}`}
-                      type="button"
-                      onClick={() => setDisplayMode('maze')}
-                    >
-                      {mazeScreenText.displayMode.maze}
-                    </button>
-                    <button
-                      className={`app__tab ${displayMode === 'graph' ? 'app__tab--active' : ''}`}
-                      type="button"
-                      onClick={() => setDisplayMode('graph')}
-                    >
-                      {mazeScreenText.displayMode.graph}
-                    </button>
-                  </div>
-                </div>
                 <div className="app__sizeFields">
                   <label className="app__field">
                     <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
