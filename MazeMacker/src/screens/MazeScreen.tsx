@@ -957,7 +957,7 @@ function MazeScreen() {
         ) : (
           <MazeCanvas
             displayMode={displayMode}
-            showGraphEdgeCosts={showGraphEdgeCosts}
+            showGraphEdgeCosts={activeTab === 'edit' && editMode === 'cost' ? true : showGraphEdgeCosts}
             maze={generationState.maze}
             visited={
               generationState.algorithm === 'wallFilling'
@@ -1043,28 +1043,36 @@ function MazeScreen() {
                   <button
                     className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('wall')}
+                    onClick={() => {
+                      setEditMode('wall')
+                    }}
                   >
                     {mazeScreenText.edit.modes.wall}
                   </button>
                   <button
                     className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('cost')}
+                    onClick={() => {
+                      setEditMode('cost')
+                    }}
                   >
                     {mazeScreenText.edit.modes.cost}
                   </button>
                   <button
                     className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('start')}
+                    onClick={() => {
+                      setEditMode('start')
+                    }}
                   >
                     {mazeScreenText.edit.modes.start}
                   </button>
                   <button
                     className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('goal')}
+                    onClick={() => {
+                      setEditMode('goal')
+                    }}
                   >
                     {mazeScreenText.edit.modes.goal}
                   </button>
