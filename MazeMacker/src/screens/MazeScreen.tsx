@@ -205,16 +205,16 @@ function MazeScreen() {
     MazeSearchAlgorithm[]
   >(['astar'])
   const [generationState, setGenerationState] = useState(() =>
-    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED),
+    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null),
   )
   const [searchStates, setSearchStates] = useState<SearchStateMap>(() =>
     createSearchStateMap(
-      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED).maze,
+      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null).maze,
     ),
   )
   const [playerState, setPlayerState] = useState<PlayerState>(() =>
     createPlayerState(
-      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED).maze,
+      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null).maze,
     ),
   )
   const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
@@ -239,7 +239,7 @@ function MazeScreen() {
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
   })
   const [seedInput, setSeedInput] = useState(String(DEFAULT_MAZE_SEED))
-  const [useSeed, setUseSeed] = useState(true)
+  const [useSeed, setUseSeed] = useState(false)
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
