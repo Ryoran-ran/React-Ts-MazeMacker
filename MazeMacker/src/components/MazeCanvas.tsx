@@ -93,6 +93,11 @@ function MazeCanvas({
   const bumpDirectionRef = useRef<MazeWallDirection | null>(null)
   const bumpProgressRef = useRef(0)
   const celebrationProgressRef = useRef(0)
+  const hoverTargetRef = useRef<{
+    direction: MazeWallDirection | null
+    x: number
+    y: number
+  } | null>(null)
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
 
   const rowCount = maze.length
@@ -224,6 +229,54 @@ function MazeCanvas({
         p.noLoop()
       }
 
+      function resolveEditTarget(pointerX: number, pointerY: number) {
+        if (!editable) {
+          return null
+        }
+
+        if (pointerX < 0 || pointerX >= canvasWidth || pointerY < 0 || pointerY >= canvasHeight) {
+          return null
+        }
+
+        const cellX = Math.min(columnCount - 1, Math.floor(pointerX / responsiveCellSize))
+        const cellY = Math.min(rowCount - 1, Math.floor(pointerY / responsiveCellSize))
+
+        if (editMode === 'start' || editMode === 'goal') {
+          return { x: cellX, y: cellY, direction: null as MazeWallDirection | null }
+        }
+
+        const localX = pointerX - cellX * responsiveCellSize
+        const localY = pointerY - cellY * responsiveCellSize
+        const distances: Array<{ direction: MazeWallDirection; distance: number }> = [
+          { direction: 'top', distance: localY },
+          { direction: 'right', distance: responsiveCellSize - localX },
+          { direction: 'bottom', distance: responsiveCellSize - localY },
+          { direction: 'left', distance: localX },
+        ]
+
+        distances.sort((left, right) => left.distance - right.distance)
+
+        return {
+          x: cellX,
+          y: cellY,
+          direction: distances[0].direction,
+        }
+      }
+
+      p.mouseMoved = () => {
+        if (editable) {
+          hoverTargetRef.current = resolveEditTarget(p.mouseX, p.mouseY)
+          p.redraw()
+        }
+      }
+
+      p.mouseReleased = () => {
+        if (editable) {
+          hoverTargetRef.current = resolveEditTarget(p.mouseX, p.mouseY)
+          p.redraw()
+        }
+      }
+
       p.mousePressed = () => {
         if (!editable) {
           return
@@ -263,6 +316,7 @@ function MazeCanvas({
 
       p.draw = () => {
         p.background(backgroundColor)
+        const hoveredEditTarget = hoverTargetRef.current
 
         const revealedWallSet = new Set(
           revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
@@ -349,6 +403,47 @@ function MazeCanvas({
               p.noStroke()
               p.fill('#86efac')
               p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+            }
+
+            if (
+              hoveredEditTarget &&
+              hoveredEditTarget.x === x &&
+              hoveredEditTarget.y === y
+            ) {
+              p.noStroke()
+              if (editMode === 'start') {
+                p.fill(37, 99, 235, 52)
+              } else if (editMode === 'goal') {
+                p.fill(220, 38, 38, 52)
+              } else {
+                p.fill(15, 23, 42, 28)
+              }
+              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
+
+              if (hoveredEditTarget.direction) {
+                p.stroke(15, 23, 42, 90)
+                p.strokeWeight(Math.max(4, responsiveCellSize * 0.14))
+
+                if (hoveredEditTarget.direction === 'top') {
+                  p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
+                } else if (hoveredEditTarget.direction === 'right') {
+                  p.line(
+                    drawX + responsiveCellSize,
+                    drawY,
+                    drawX + responsiveCellSize,
+                    drawY + responsiveCellSize,
+                  )
+                } else if (hoveredEditTarget.direction === 'bottom') {
+                  p.line(
+                    drawX,
+                    drawY + responsiveCellSize,
+                    drawX + responsiveCellSize,
+                    drawY + responsiveCellSize,
+                  )
+                } else {
+                  p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+                }
+              }
             }
 
             const isCurrentCellHighlighted =
