@@ -73,6 +73,7 @@
       "deadEndFilling": "行き止まり埋め",
       "dfs": "深さ優先探索",
       "goalPruning": "枝刈り探索",
+      "humanAstar": "人力A*探索",
       "leftHand": "左手探索法",
       "tremaux": "Trémaux法",
       "rightHand": "右手探索法"

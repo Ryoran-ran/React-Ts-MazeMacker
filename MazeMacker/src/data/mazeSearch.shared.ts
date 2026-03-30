@@ -17,6 +17,7 @@ export type MazeSearchAlgorithm =
   | 'deadEndFilling'
   | 'dfs'
   | 'goalPruning'
+  | 'humanAstar'
   | 'leftHand'
   | 'tremaux'
   | 'rightHand'
@@ -34,6 +35,8 @@ export type MazeSearchState = {
   parents: Array<Array<CellPosition | null>>
   path: boolean[][]
   stepCount: number
+  targetNode: SearchNode | null
+  travelPath: CellPosition[]
   goal: CellPosition
   seenStates: string[]
   start: CellPosition
@@ -49,6 +52,7 @@ export const MAZE_SEARCH_ALGORITHM_OPTIONS: Array<{
   { label: 'Dead-End Filling', value: 'deadEndFilling' },
   { label: '深さ優先探索', value: 'dfs' },
   { label: '枝刈り探索', value: 'goalPruning' },
+  { label: '人力A*探索', value: 'humanAstar' },
   { label: '左手探索法', value: 'leftHand' },
   { label: 'Trémaux法', value: 'tremaux' },
   { label: '右手探索法', value: 'rightHand' },
@@ -223,7 +227,9 @@ export function createMazeSearchState(
   const costs = createCostGrid(maze)
 
   const isWallFollower =
-    algorithm === 'rightHand' || algorithm === 'leftHand' || algorithm === 'tremaux'
+    algorithm === 'rightHand' ||
+    algorithm === 'leftHand' ||
+    algorithm === 'tremaux'
   const frontier =
     algorithm === 'deadEndFilling'
       ? maze.flatMap((row, y) =>
@@ -263,6 +269,8 @@ export function createMazeSearchState(
       parents,
       path,
       stepCount: 0,
+      targetNode: null,
+      travelPath: [],
       goal,
       seenStates: [`${start.x},${start.y},${currentDirection}`],
       start,
@@ -273,7 +281,7 @@ export function createMazeSearchState(
   return {
     algorithm,
     costs,
-    currentCell: isWallFollower ? start : null,
+    currentCell: algorithm === 'humanAstar' || isWallFollower ? start : null,
     currentDirection,
     frontier,
     isComplete: false,
@@ -283,6 +291,8 @@ export function createMazeSearchState(
     parents,
     path: createBooleanGrid(maze),
     stepCount: 0,
+    targetNode: null,
+    travelPath: [],
     goal,
     seenStates: [`${start.x},${start.y},${currentDirection}`],
     start,
