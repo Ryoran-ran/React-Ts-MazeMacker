@@ -1,4 +1,5 @@
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
+import GraphTheoryCanvas from '../components/GraphTheoryCanvas'
 import MazeCanvas, {
   type MazeDisplayMode,
   type MazeEditMode,
@@ -34,6 +35,7 @@ import {
   downloadMazeTransferPayload,
 } from '../data/mazeTransfer.export'
 import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
+import { createDefaultGraphTheoryData } from '../data/graphTheory'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
@@ -43,6 +45,7 @@ const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
 const MIN_EDGE_COST = 0
 const MAX_EDGE_COST = 99
+type AppMode = 'maze' | 'graphTheory'
 type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
@@ -249,6 +252,7 @@ function getSolvedPathCost(searchState: MazeSearchState) {
 
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [appMode, setAppMode] = useState<AppMode>('maze')
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
   const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
     MazeSearchAlgorithm[]
@@ -289,6 +293,17 @@ function MazeScreen() {
   })
   const [seedInput, setSeedInput] = useState(String(DEFAULT_MAZE_SEED))
   const [useSeed, setUseSeed] = useState(false)
+  const graphTheoryData = createDefaultGraphTheoryData(7)
+  const graphVertexCount = graphTheoryData.nodes.length
+  const graphEdgeCount = graphTheoryData.edges.length
+  const effectiveDisplayMode: MazeDisplayMode =
+    appMode === 'graphTheory' ? 'graph' : displayMode
+  const effectiveShowGraphEdgeCosts =
+    appMode === 'graphTheory'
+      ? true
+      : activeTab === 'edit' && editMode === 'cost'
+        ? true
+        : showGraphEdgeCosts
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
@@ -430,6 +445,12 @@ function MazeScreen() {
     }
 
     setActiveTab(nextTab)
+  }
+
+  function handleAppModeChange(nextMode: AppMode) {
+    setIsPlaying(false)
+    setIsSearchPlaying(false)
+    setAppMode(nextMode)
   }
 
   function handleComplete() {
@@ -761,6 +782,10 @@ function MazeScreen() {
   }
 
   function renderTopActions() {
+    if (appMode === 'graphTheory') {
+      return null
+    }
+
     if (activeTab === 'edit') {
       return (
         <>
@@ -869,27 +894,44 @@ function MazeScreen() {
       <header className="app__topbar">
         <h1>{mazeScreenText.title}</h1>
         <div className="app__topbarSide">
-          <div className="app__statusRow" aria-label="Maze status">
-            <span className="app__statusItem">
-              {mazeScreenText.status.algorithm}:{' '}
-              {mazeScreenText.algorithm.options[selectedAlgorithm]}
-            </span>
-            <span className="app__statusItem">
-              {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
-              {generationState.dimensions.rows}
-            </span>
-            <span className="app__statusItem">
-              {mazeScreenText.status.steps}: {generationState.stepCount}
-              {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
-              {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
-            </span>
+          <div className="app__statusArea">
+            <div className="app__statusRow" aria-label="Maze status">
+              <span className="app__statusItem">
+                {mazeScreenText.status.algorithm}:{' '}
+                {mazeScreenText.algorithm.options[selectedAlgorithm]}
+              </span>
+              <span className="app__statusItem">
+                {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
+                {generationState.dimensions.rows}
+              </span>
+              <span className="app__statusItem">
+                {mazeScreenText.status.steps}: {generationState.stepCount}
+                {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+                {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+              </span>
+            </div>
+            <label className="app__modeField" aria-label={mazeScreenText.mode.label}>
+              <select
+                className="app__input app__modeSelect"
+                value={appMode}
+                onChange={(event) => handleAppModeChange(event.target.value as AppMode)}
+              >
+                <option value="maze">{mazeScreenText.mode.maze}</option>
+                <option value="graphTheory">{mazeScreenText.mode.graphTheory}</option>
+              </select>
+            </label>
           </div>
           <div className="app__topbarActions">{renderTopActions()}</div>
         </div>
       </header>
 
       <section className="app__panel">
-        {activeTab === 'search' ? (
+        {appMode === 'graphTheory' ? (
+          <GraphTheoryCanvas
+            graph={graphTheoryData}
+            showEdgeCosts={showGraphEdgeCosts}
+          />
+        ) : activeTab === 'search' ? (
           <div className="app__searchPanels">
             {selectedSearchAlgorithms.map((algorithm) => {
               const searchState = searchStates[algorithm]
@@ -910,8 +952,8 @@ function MazeScreen() {
                     </p>
                   </header>
                   <MazeCanvas
-                    displayMode={displayMode}
-                    showGraphEdgeCosts={showGraphEdgeCosts}
+                    displayMode={effectiveDisplayMode}
+                    showGraphEdgeCosts={effectiveShowGraphEdgeCosts}
                     maze={generationState.maze}
                     openSet={searchState.openSet}
                     path={searchState.path}
@@ -941,8 +983,8 @@ function MazeScreen() {
               bumpState={playerBumpState}
               celebrateGoal={playerState.isSolved}
               currentFacingDirection={playerState.facingDirection}
-              displayMode={displayMode}
-              showGraphEdgeCosts={showGraphEdgeCosts}
+              displayMode={effectiveDisplayMode}
+              showGraphEdgeCosts={effectiveShowGraphEdgeCosts}
               maze={generationState.maze}
               playHandGuideMode={playHandGuideMode}
               playWallVisibilityMode={playWallVisibilityMode}
@@ -956,8 +998,8 @@ function MazeScreen() {
           </div>
         ) : (
           <MazeCanvas
-            displayMode={displayMode}
-            showGraphEdgeCosts={activeTab === 'edit' && editMode === 'cost' ? true : showGraphEdgeCosts}
+            displayMode={effectiveDisplayMode}
+            showGraphEdgeCosts={effectiveShowGraphEdgeCosts}
             maze={generationState.maze}
             visited={
               generationState.algorithm === 'wallFilling'
@@ -1035,7 +1077,43 @@ function MazeScreen() {
         </div>
 
         <section className="app__controls">
-          {activeTab === 'edit' ? (
+          {appMode === 'graphTheory' ? (
+            <div className="app__controlsBody">
+              <p className="app__status">{mazeScreenText.graphTheory.hint}</p>
+              <div className="app__field">
+                <span className="app__fieldLabel">
+                  {mazeScreenText.graphTheory.summaryLabel}
+                </span>
+                <div className="app__graphSummary">
+                  <span>
+                    {mazeScreenText.graphTheory.vertices}: {graphVertexCount}
+                  </span>
+                  <span>
+                    {mazeScreenText.graphTheory.edges}: {graphEdgeCount}
+                  </span>
+                </div>
+              </div>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
+                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">
+                  <button
+                    className={`app__tab ${showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowGraphEdgeCosts(true)}
+                  >
+                    {mazeScreenText.graphEdgeCosts.visible}
+                  </button>
+                  <button
+                    className={`app__tab ${!showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowGraphEdgeCosts(false)}
+                  >
+                    {mazeScreenText.graphEdgeCosts.hidden}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === 'edit' ? (
             <>
               <div className="app__controlsBody">
                 <p className="app__status">{mazeScreenText.edit.hint}</p>

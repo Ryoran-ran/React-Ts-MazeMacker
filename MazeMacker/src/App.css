@@ -25,6 +25,25 @@
   gap: 10px;
 }
 
+.app__statusArea {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.app__modeField {
+  display: grid;
+  justify-items: end;
+  gap: 0;
+}
+
+.app__modeSelect {
+  min-width: 180px;
+  margin: 0;
+}
+
 .app__topbarActions {
   display: flex;
   flex-wrap: wrap;
@@ -226,6 +245,14 @@
   color: #6b7280;
   text-align: right;
   white-space: nowrap;
+}
+
+.app__graphSummary {
+  display: grid;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-h);
 }
 
 .app__input {
@@ -439,6 +466,20 @@
   justify-content: center;
 }
 
+.graph-theory-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.graph-theory-canvas__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 20px;
+}
+
 .maze-canvas__stage {
   display: flex;
   align-items: center;
@@ -469,6 +510,23 @@
     align-items: center;
     padding: 0;
     text-align: center;
+  }
+
+  .app__topbarSide,
+  .app__modeField {
+    width: 100%;
+    justify-items: center;
+  }
+
+  .app__statusArea {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .app__modeSelect {
+    min-width: 0;
+    width: 100%;
   }
 
   .app__topbar h1 {
