@@ -200,6 +200,66 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
   return { edges, nodes }
 }
 
+export function resizeGraphTheoryData(
+  graph: GraphTheoryData,
+  nodeCount: number,
+): GraphTheoryData {
+  const safeNodeCount = Math.max(2, Math.min(nodeCount, 24))
+
+  if (safeNodeCount === graph.nodes.length) {
+    return graph
+  }
+
+  const defaultGraph = createDefaultGraphTheoryData(safeNodeCount)
+
+  if (safeNodeCount < graph.nodes.length) {
+    const keptNodes = graph.nodes.slice(0, safeNodeCount).map((node, index) => ({
+      ...node,
+      id: index,
+    }))
+    const keptNodeIds = new Set(keptNodes.map((node) => node.id))
+    let nodes = keptNodes
+
+    if (!nodes.some((node) => node.kind === 'start')) {
+      nodes = nodes.map((node, index) => ({
+        ...node,
+        kind: index === 0 ? 'start' : node.kind,
+      }))
+    }
+
+    if (!nodes.some((node) => node.kind === 'goal')) {
+      nodes = nodes.map((node, index) => ({
+        ...node,
+        kind: index === nodes.length - 1 ? 'goal' : node.kind,
+      }))
+    }
+
+    const edges = graph.edges.filter(
+      (edge) => keptNodeIds.has(edge.from) && keptNodeIds.has(edge.to),
+    )
+
+    return {
+      edges,
+      nodes,
+    }
+  }
+
+  const existingNodes = graph.nodes.map((node, index) => ({
+    ...node,
+    id: index,
+  }))
+  const appendedNodes = defaultGraph.nodes.slice(graph.nodes.length).map((node, offset) => ({
+    ...node,
+    id: graph.nodes.length + offset,
+    kind: undefined,
+  }))
+
+  return {
+    edges: graph.edges,
+    nodes: [...existingNodes, ...appendedNodes],
+  }
+}
+
 export function setGraphTheoryEdgeCost(
   graph: GraphTheoryData,
   edgeIndex: number,

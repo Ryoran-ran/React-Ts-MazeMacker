@@ -11,6 +11,7 @@ import {
   addGraphTheoryEdge,
   cycleGraphTheoryEdgeDirection,
   createDefaultGraphTheoryData,
+  resizeGraphTheoryData,
   setAllGraphTheoryEdgeCosts,
   setAllGraphTheoryNodeCosts,
   setGraphTheoryEdgeCost,
@@ -152,7 +153,7 @@ export function useGraphTheoryMode() {
   function handleApplyGraphVertexCount() {
     const nextCount = normalizeGraphVertexCount(graphVertexCountInput, graphTheoryState.nodes.length)
     setGraphVertexCountInput(String(nextCount))
-    setGraphTheoryState(createDefaultGraphTheoryData(nextCount))
+    setGraphTheoryState((currentGraph) => resizeGraphTheoryData(currentGraph, nextCount))
   }
 
   function handleGraphSearchStep() {
