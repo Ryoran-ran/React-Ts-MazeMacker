@@ -429,7 +429,9 @@ function MazeScreen() {
   const effectiveDisplayMode: MazeDisplayMode =
     appMode === 'graphTheory' ? 'graph' : displayMode
   const effectiveShowGraphEdgeCosts =
-    activeTab === 'edit' && editMode === 'cost' ? true : showGraphEdgeCosts
+    appMode === 'graphTheory' || (activeTab === 'edit' && editMode === 'cost')
+      ? true
+      : showGraphEdgeCosts
   const editPreviewPath = useMemo(() => {
     if (appMode !== 'maze' || activeTab !== 'edit' || !showEditGoalPath) {
       return undefined
