@@ -84,8 +84,15 @@
     "nodeTextOrderCostFirst": "コストが上",
     "applyAllEdgeCosts": "辺に一括反映",
     "applyAllNodeCosts": "頂点に一括反映",
+    "importExportLabel": "グラフデータ",
+    "importExportPlaceholder": "ここにグラフ理論 JSON を貼り付けます。",
     "vertices": "頂点",
-    "edges": "辺"
+    "edges": "辺",
+    "errors": {
+      "invalidJson": "JSON を読み取れません",
+      "invalidGraph": "グラフデータの形式が不正です",
+      "invalidMarkers": "start と goal は1つずつ必要です"
+    }
   },
   "graphTheorySearch": {
     "algorithmLabel": "探索方式",

@@ -342,6 +342,7 @@ export function useGraphTheoryMode() {
     setGraphEdgeCostInput,
     setGraphNodeCostInput,
     setGraphNodeLabelInput,
+    setGraphTheoryState,
     setGraphVertexCountInput,
     setGraphSearchStates,
     setSelectedGraphSearchAlgorithms,

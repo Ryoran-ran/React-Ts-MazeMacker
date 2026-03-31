@@ -27,6 +27,11 @@ import {
 } from '../data/mazeTransfer.export'
 import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
 import {
+  buildGraphTheoryTransferPayload,
+  downloadGraphTheoryTransferPayload,
+} from '../data/graphTheoryTransfer.export'
+import { parseGraphTheoryTransferPayload } from '../data/graphTheoryTransfer.import'
+import {
   getSolvedMazePathCost,
   MAZE_SEARCH_ALGORITHM_OPTIONS,
   useMazeMode,
@@ -342,6 +347,7 @@ function buildPathGridFromPositions(
 
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
+  const importGraphFileInputRef = useRef<HTMLInputElement | null>(null)
   const mazeMode = useMazeMode(DEFAULT_MAZE_DIMENSIONS, 'digging')
   const graphTheoryMode = useGraphTheoryMode()
   const [appMode, setAppMode] = useState<AppMode>('maze')
@@ -371,6 +377,7 @@ function MazeScreen() {
   const [isGraphNodeLabelVisible, setIsGraphNodeLabelVisible] = useState(true)
   const [graphNodeTextOrder, setGraphNodeTextOrder] = useState<GraphNodeTextOrder>('labelFirst')
   const [mazeTransferText, setMazeTransferText] = useState('')
+  const [graphTheoryTransferText, setGraphTheoryTransferText] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
   const [editCostInput, setEditCostInput] = useState('1')
   const [dimensionInputs, setDimensionInputs] = useState({
@@ -423,6 +430,7 @@ function MazeScreen() {
     setGraphEdgeCostInput,
     setGraphNodeCostInput,
     setGraphNodeLabelInput,
+    setGraphTheoryState,
     setGraphVertexCountInput,
   } = graphTheoryMode
   const optimalGraphPlayCost = getOptimalGraphPlayCost(graphTheoryData)
@@ -1012,6 +1020,65 @@ function MazeScreen() {
     }
   }
 
+  function handleExportGraphTheory() {
+    const payload = buildGraphTheoryTransferPayload(graphTheoryData)
+    const json = downloadGraphTheoryTransferPayload(payload, graphTheoryData.nodes.length)
+
+    setGraphTheoryTransferText(json)
+    setToast({
+      message: mazeScreenText.importExport.exported,
+      tone: 'success',
+    })
+  }
+
+  function applyImportedGraphTheory(graphTheoryJson: string) {
+    try {
+      const importedPayload = parseGraphTheoryTransferPayload(graphTheoryJson, {
+        invalidJson: mazeScreenText.graphTheory.errors.invalidJson,
+        invalidGraph: mazeScreenText.graphTheory.errors.invalidGraph,
+        invalidMarkers: mazeScreenText.graphTheory.errors.invalidMarkers,
+      })
+
+      setIsSearchPlaying(false)
+      setGraphTheoryTransferText(graphTheoryJson)
+      setGraphVertexCountInput(String(importedPayload.graph.nodes.length))
+      setGraphTheoryState(importedPayload.graph)
+      setToast({
+        message: mazeScreenText.importExport.imported,
+        tone: 'success',
+      })
+    } catch (error) {
+      setToast({
+        message:
+          error instanceof Error ? error.message : mazeScreenText.graphTheory.errors.invalidJson,
+        tone: 'error',
+      })
+    }
+  }
+
+  function handleImportGraphTheoryFromTextArea() {
+    applyImportedGraphTheory(graphTheoryTransferText)
+  }
+
+  function handleImportGraphTheoryFromFile() {
+    importGraphFileInputRef.current?.click()
+  }
+
+  async function handleImportGraphTheoryFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const graphTheoryJson = await file.text()
+      applyImportedGraphTheory(graphTheoryJson)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
   function handleRandomizeSeed() {
     setSeedInput(String(createRandomSeed()))
   }
@@ -1053,6 +1120,19 @@ function MazeScreen() {
         <button className="app__button app__button--secondary" onClick={handleGraphPlayReset}>
           {mazeScreenText.buttons.reset}
         </button>
+      )
+    }
+
+    if (appMode === 'graphTheory' && activeTab === 'edit') {
+      return (
+        <>
+          <button className="app__button" onClick={handleExportGraphTheory}>
+            {mazeScreenText.importExport.export}
+          </button>
+          <button className="app__button" onClick={handleImportGraphTheoryFromFile}>
+            {mazeScreenText.importExport.import}
+          </button>
+        </>
       )
     }
 
@@ -1647,6 +1727,38 @@ function MazeScreen() {
                   </div>
                 </div>
               ) : null}
+              <div className="app__field">
+                <div className="app__fieldHeader">
+                  <span className="app__fieldLabel">
+                    {mazeScreenText.graphTheory.importExportLabel}
+                  </span>
+                  <div className="app__fieldHeaderActions">
+                    <button
+                      className="app__button app__button--compact"
+                      onClick={handleImportGraphTheoryFromTextArea}
+                      disabled={graphTheoryTransferText.trim().length === 0}
+                    >
+                      {mazeScreenText.importExport.importText}
+                    </button>
+                    <input
+                      ref={importGraphFileInputRef}
+                      className="app__srOnly"
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={handleImportGraphTheoryFileChange}
+                    />
+                  </div>
+                </div>
+                <textarea
+                  className="app__textarea"
+                  value={graphTheoryTransferText}
+                  placeholder={mazeScreenText.graphTheory.importExportPlaceholder}
+                  onChange={(event) => {
+                    setGraphTheoryTransferText(event.target.value)
+                    setToast(null)
+                  }}
+                />
+              </div>
             </div>
           ) : appMode === 'graphTheory' && activeTab === 'search' ? (
             <div className="app__controlsBody">
