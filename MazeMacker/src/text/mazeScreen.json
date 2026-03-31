@@ -63,6 +63,8 @@
     "editHint": "グラフ理論の編集機能はこの画面に追加します。",
     "editTitle": "グラフ編集",
     "summaryLabel": "グラフ情報",
+    "vertexCountLabel": "頂点数",
+    "applyVertexCount": "反映",
     "edgeMode": "辺",
     "edgeConnectHint": "2つの頂点を順にクリックすると辺をつなぎ、すでにつながっていれば削除します。",
     "edgeCostLabel": "辺コスト",

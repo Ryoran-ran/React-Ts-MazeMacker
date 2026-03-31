@@ -52,6 +52,8 @@ const DEFAULT_SEARCH_INTERVAL_MS = 40
 const MAX_PLAYBACK_INTERVAL_MS = 180
 const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
+const MIN_GRAPH_VERTEX_COUNT = 2
+const MAX_GRAPH_VERTEX_COUNT = 24
 const MIN_EDGE_COST = 0
 const MAX_EDGE_COST = 99
 type AppMode = 'maze' | 'graphTheory'
@@ -90,6 +92,16 @@ function normalizeDimension(value: string, fallback: number) {
   }
 
   return Math.max(MIN_DIMENSION, parsed)
+}
+
+function normalizeGraphVertexCount(value: string, fallback: number) {
+  const parsed = Number.parseInt(value, 10)
+
+  if (Number.isNaN(parsed)) {
+    return fallback
+  }
+
+  return Math.min(MAX_GRAPH_VERTEX_COUNT, Math.max(MIN_GRAPH_VERTEX_COUNT, parsed))
 }
 
 function normalizeEdgeCost(value: string, fallback: number) {
@@ -298,6 +310,7 @@ function MazeScreen() {
   const [editCostInput, setEditCostInput] = useState('1')
   const [graphEdgeCostInput, setGraphEdgeCostInput] = useState('1')
   const [graphNodeCostInput, setGraphNodeCostInput] = useState('1')
+  const [graphVertexCountInput, setGraphVertexCountInput] = useState('7')
   const [graphTheoryState, setGraphTheoryState] = useState<GraphTheoryData>(() =>
     createDefaultGraphTheoryData(7),
   )
@@ -749,6 +762,12 @@ function MazeScreen() {
   function handleApplyAllGraphTheoryNodeCosts() {
     const nextCost = normalizeEdgeCost(graphNodeCostInput, 1)
     setGraphTheoryState((currentGraph) => setAllGraphTheoryNodeCosts(currentGraph, nextCost))
+  }
+
+  function handleApplyGraphVertexCount() {
+    const nextCount = normalizeGraphVertexCount(graphVertexCountInput, graphTheoryState.nodes.length)
+    setGraphVertexCountInput(String(nextCount))
+    setGraphTheoryState(createDefaultGraphTheoryData(nextCount))
   }
 
   function handleExportMaze() {
@@ -1274,6 +1293,27 @@ function MazeScreen() {
             </div>
           ) : appMode === 'graphTheory' ? (
             <div className="app__controlsBody">
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.graphTheory.vertexCountLabel}</span>
+                <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_GRAPH_VERTEX_COUNT}
+                    max={MAX_GRAPH_VERTEX_COUNT}
+                    step={1}
+                    value={graphVertexCountInput}
+                    onChange={(event) => setGraphVertexCountInput(event.target.value)}
+                  />
+                  <button
+                    className="app__button app__button--compact app__button--secondary"
+                    type="button"
+                    onClick={handleApplyGraphVertexCount}
+                  >
+                    {mazeScreenText.graphTheory.applyVertexCount}
+                  </button>
+                </div>
+              </div>
               <div className="app__field">
                 <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
                 <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">

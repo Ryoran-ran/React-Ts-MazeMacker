@@ -23,16 +23,6 @@ export type GraphTheoryData = {
   nodes: GraphTheoryNode[]
 }
 
-const DEFAULT_GRAPH_POSITIONS: CellPosition[] = [
-  { x: 8, y: 8 },
-  { x: 26, y: 22 },
-  { x: 14, y: 38 },
-  { x: 42, y: 12 },
-  { x: 58, y: 28 },
-  { x: 70, y: 10 },
-  { x: 72, y: 42 },
-]
-
 const DIRECTION_OFFSETS: Record<MazeWallDirection, { dx: number; dy: number }> = {
   top: { dx: 0, dy: -1 },
   right: { dx: 1, dy: 0 },
@@ -45,6 +35,24 @@ const OPPOSITE_DIRECTION: Record<MazeWallDirection, MazeWallDirection> = {
   right: 'left',
   bottom: 'top',
   left: 'right',
+}
+
+function createDefaultGraphPositions(nodeCount: number) {
+  const centerX = 40
+  const centerY = 25
+  const radiusX = 31
+  const radiusY = 18
+
+  return Array.from({ length: nodeCount }, (_, index) => {
+    const ratio = index / nodeCount
+    const angle = -Math.PI / 2 + ratio * Math.PI * 2
+    const wobble = index % 2 === 0 ? 1 : 0.82
+
+    return {
+      x: centerX + Math.cos(angle) * radiusX * wobble,
+      y: centerY + Math.sin(angle) * radiusY * wobble,
+    }
+  })
 }
 
 function getOpenDirections(maze: MazeData, position: CellPosition) {
@@ -152,25 +160,32 @@ export function buildGraphTheoryData(maze: MazeData): GraphTheoryData {
 }
 
 export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
-  const safeNodeCount = Math.max(2, Math.min(nodeCount, DEFAULT_GRAPH_POSITIONS.length))
-  const defaultNodeCosts = [6, 4, 3, 5, 2, 1, 7]
+  const safeNodeCount = Math.max(2, Math.min(nodeCount, 24))
+  const positions = createDefaultGraphPositions(safeNodeCount)
   const nodes: GraphTheoryNode[] = Array.from({ length: safeNodeCount }, (_, index) => ({
-    cost: defaultNodeCosts[index] ?? 1,
+    cost: (index % 9) + 1,
     id: index,
     kind: index === 0 ? 'start' : index === safeNodeCount - 1 ? 'goal' : undefined,
-    position: DEFAULT_GRAPH_POSITIONS[index],
+    position: positions[index],
   }))
 
-  const edges: GraphTheoryEdge[] = [
-    { cost: 2, from: 0, to: 1 },
-    { cost: 4, from: 0, to: 2 },
-    { cost: 3, from: 1, to: 2 },
-    { cost: 1, from: 1, to: 3 },
-    { cost: 5, from: 1, to: 4 },
-    { cost: 2, from: 3, to: 5 },
-    { cost: 4, from: 4, to: 5 },
-    { cost: 3, from: 4, to: 6 },
-  ].filter((edge) => edge.from < safeNodeCount && edge.to < safeNodeCount)
+  const edges: GraphTheoryEdge[] = []
+
+  for (let index = 0; index < safeNodeCount - 1; index += 1) {
+    edges.push({
+      cost: ((index + 1) % 5) + 1,
+      from: index,
+      to: index + 1,
+    })
+  }
+
+  for (let index = 0; index < safeNodeCount - 2; index += 2) {
+    edges.push({
+      cost: ((index + 3) % 5) + 1,
+      from: index,
+      to: index + 2,
+    })
+  }
 
   return { edges, nodes }
 }
