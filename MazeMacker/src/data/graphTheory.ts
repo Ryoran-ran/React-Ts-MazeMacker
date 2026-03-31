@@ -24,6 +24,9 @@ export type GraphTheoryData = {
   nodes: GraphTheoryNode[]
 }
 
+export const GRAPH_THEORY_WORLD_WIDTH = 80
+export const GRAPH_THEORY_WORLD_HEIGHT = 50
+
 const DIRECTION_OFFSETS: Record<MazeWallDirection, { dx: number; dy: number }> = {
   top: { dx: 0, dy: -1 },
   right: { dx: 1, dy: 0 },
@@ -306,8 +309,8 @@ export function setGraphTheoryNodePosition(
         ? {
             ...node,
             position: {
-              x: Math.max(0, Math.min(80, position.x)),
-              y: Math.max(0, Math.min(50, position.y)),
+              x: Math.max(0, Math.min(GRAPH_THEORY_WORLD_WIDTH, position.x)),
+              y: Math.max(0, Math.min(GRAPH_THEORY_WORLD_HEIGHT, position.y)),
             },
           }
         : node,

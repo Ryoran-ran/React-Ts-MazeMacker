@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GraphTheoryData } from '../data/graphTheory'
+import {
+  GRAPH_THEORY_WORLD_HEIGHT,
+  GRAPH_THEORY_WORLD_WIDTH,
+  type GraphTheoryData,
+} from '../data/graphTheory'
 
 type CellPosition = {
   x: number
@@ -75,8 +79,6 @@ function GraphTheoryCanvas({
 
   const width = Math.max(containerSize.width, 320)
   const height = Math.max(containerSize.height, 320)
-  const maxX = Math.max(...graph.nodes.map((node) => node.position.x), 1)
-  const maxY = Math.max(...graph.nodes.map((node) => node.position.y), 1)
   const padding = 56
   const nodeRadius = Math.max(18, Math.min(44, 220 / Math.sqrt(graph.nodes.length || 1)))
   const edgeStroke = Math.max(2, nodeRadius * 0.16)
@@ -86,8 +88,8 @@ function GraphTheoryCanvas({
     const usableHeight = Math.max(1, height - padding * 2)
 
     return {
-      x: padding + (position.x / maxX) * usableWidth,
-      y: padding + (position.y / maxY) * usableHeight,
+      x: padding + (position.x / GRAPH_THEORY_WORLD_WIDTH) * usableWidth,
+      y: padding + (position.y / GRAPH_THEORY_WORLD_HEIGHT) * usableHeight,
     }
   }
 
@@ -96,8 +98,20 @@ function GraphTheoryCanvas({
     const usableHeight = Math.max(1, height - padding * 2)
 
     return {
-      x: Math.max(0, Math.min(maxX, ((pointerX - padding) / usableWidth) * maxX)),
-      y: Math.max(0, Math.min(maxY, ((pointerY - padding) / usableHeight) * maxY)),
+      x: Math.max(
+        0,
+        Math.min(
+          GRAPH_THEORY_WORLD_WIDTH,
+          ((pointerX - padding) / usableWidth) * GRAPH_THEORY_WORLD_WIDTH,
+        ),
+      ),
+      y: Math.max(
+        0,
+        Math.min(
+          GRAPH_THEORY_WORLD_HEIGHT,
+          ((pointerY - padding) / usableHeight) * GRAPH_THEORY_WORLD_HEIGHT,
+        ),
+      ),
     }
   }
 
@@ -344,12 +358,12 @@ function GraphTheoryCanvas({
             isPath
               ? '#4ade80'
               : isHovered
-                ? 'rgba(37, 99, 235, 0.45)'
+                ? 'rgba(37, 99, 235, 0.22)'
                 : '#94a3b8'
           const strokeWidth = isPath
             ? edgeStroke * 1.7
             : isHovered
-              ? edgeStroke * 1.55
+              ? edgeStroke * 1.2
               : edgeStroke
 
           return (
@@ -505,9 +519,9 @@ function GraphTheoryCanvas({
             <polygon
               key={`arrow-${edge.from}-${edge.to}-${edgeIndex}`}
               points={`${arrow.tipX},${arrow.tipY} ${arrow.leftX},${arrow.leftY} ${arrow.rightX},${arrow.rightY}`}
-              fill={isPath ? '#16a34a' : isHovered ? '#1d4ed8' : '#475569'}
+              fill={isPath ? '#16a34a' : isHovered ? '#0f172a' : '#475569'}
               stroke="#ffffff"
-              strokeWidth={2.5}
+              strokeWidth={3}
               strokeLinejoin="round"
             />
           )
