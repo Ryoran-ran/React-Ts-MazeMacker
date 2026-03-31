@@ -7,6 +7,7 @@ type CellPosition = {
 }
 
 type GraphTheoryCanvasProps = {
+  currentNodeId?: number | null
   graph: GraphTheoryData
   editable?: boolean
   editEdgeCostValue?: number
@@ -18,10 +19,15 @@ type GraphTheoryCanvasProps = {
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
   onNodePositionSet?: (nodeIndex: number, position: CellPosition) => void
+  openNodeIds?: boolean[]
+  pathEdgeIds?: boolean[]
+  pathNodeIds?: boolean[]
   showEdgeCosts?: boolean
+  visitedNodeIds?: boolean[]
 }
 
 function GraphTheoryCanvas({
+  currentNodeId = null,
   graph,
   editable = false,
   editEdgeCostValue = 1,
@@ -33,7 +39,11 @@ function GraphTheoryCanvas({
   onNodeKindSet,
   onNodeCostSet,
   onNodePositionSet,
+  openNodeIds,
+  pathEdgeIds,
+  pathNodeIds,
   showEdgeCosts = true,
+  visitedNodeIds,
 }: GraphTheoryCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [containerSize, setContainerSize] = useState({ height: 0, width: 0 })
@@ -329,6 +339,18 @@ function GraphTheoryCanvas({
           const labelX = (from.x + to.x) / 2
           const labelY = (from.y + to.y) / 2
           const isHovered = hoverEdgeIndex === edgeIndex
+          const isPath = pathEdgeIds?.[edgeIndex]
+          const stroke =
+            isPath
+              ? '#4ade80'
+              : isHovered
+                ? 'rgba(37, 99, 235, 0.45)'
+                : '#94a3b8'
+          const strokeWidth = isPath
+            ? edgeStroke * 1.7
+            : isHovered
+              ? edgeStroke * 1.55
+              : edgeStroke
 
           return (
             <g key={`${edge.from}-${edge.to}-${edgeIndex}`}>
@@ -337,8 +359,8 @@ function GraphTheoryCanvas({
                 y1={from.y}
                 x2={to.x}
                 y2={to.y}
-                stroke={isHovered ? 'rgba(37, 99, 235, 0.45)' : '#94a3b8'}
-                strokeWidth={isHovered ? edgeStroke * 1.55 : edgeStroke}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
                 strokeLinecap="round"
               />
               {showEdgeCosts ? (
@@ -370,6 +392,10 @@ function GraphTheoryCanvas({
           const projected = project(node.position)
           const isHovered = hoverNodeIndex === node.id
           const isPendingEdgeStart = pendingEdgeStartNodeIndex === node.id
+          const isCurrent = currentNodeId === node.id
+          const isPath = Boolean(pathNodeIds?.[node.id])
+          const isOpen = Boolean(openNodeIds?.[node.id])
+          const isVisited = Boolean(visitedNodeIds?.[node.id])
           const hoverFill =
             editMode === 'start'
               ? 'rgba(37, 99, 235, 0.16)'
@@ -381,11 +407,19 @@ function GraphTheoryCanvas({
                   ? 'rgba(37, 99, 235, 0.16)'
                   : 'rgba(37, 99, 235, 0.10)'
           const fill =
-            node.kind === 'start'
-              ? '#dbeafe'
-              : node.kind === 'goal'
-                ? '#fee2e2'
-                : '#ffffff'
+            isCurrent
+              ? '#f59e0b'
+              : isPath
+                ? '#86efac'
+                : isOpen
+                  ? '#fde68a'
+                  : isVisited
+                    ? '#dbeafe'
+                    : node.kind === 'start'
+                      ? '#dbeafe'
+                      : node.kind === 'goal'
+                        ? '#fee2e2'
+                        : '#ffffff'
 
           return (
             <g key={node.id}>
@@ -410,8 +444,14 @@ function GraphTheoryCanvas({
                 cy={projected.y}
                 r={nodeRadius}
                 fill={fill}
-                stroke={isHovered || isPendingEdgeStart ? '#2563eb' : '#e5e7eb'}
-                strokeWidth={isHovered || isPendingEdgeStart ? 4 : 2}
+                stroke={
+                  isCurrent
+                    ? '#d97706'
+                    : isHovered || isPendingEdgeStart
+                      ? '#2563eb'
+                      : '#e5e7eb'
+                }
+                strokeWidth={isCurrent || isHovered || isPendingEdgeStart ? 4 : 2}
               />
               <text
                 x={projected.x}
@@ -455,6 +495,7 @@ function GraphTheoryCanvas({
           const to = project(graph.nodes[edge.to].position)
           const isHovered = hoverEdgeIndex === edgeIndex
           const arrow = getArrowPoints(from, to, edge.direction === 'backward')
+          const isPath = Boolean(pathEdgeIds?.[edgeIndex])
 
           if (!arrow) {
             return null
@@ -464,7 +505,7 @@ function GraphTheoryCanvas({
             <polygon
               key={`arrow-${edge.from}-${edge.to}-${edgeIndex}`}
               points={`${arrow.tipX},${arrow.tipY} ${arrow.leftX},${arrow.leftY} ${arrow.rightX},${arrow.rightY}`}
-              fill={isHovered ? '#1d4ed8' : '#475569'}
+              fill={isPath ? '#16a34a' : isHovered ? '#1d4ed8' : '#475569'}
               stroke="#ffffff"
               strokeWidth={2.5}
               strokeLinejoin="round"

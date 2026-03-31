@@ -19,34 +19,24 @@ import {
   setMazeCellKind,
   setAllMazeEdgeCosts,
   setMazeEdgeCost,
-  stepMazeGeneration,
   toggleMazeWall,
 } from '../data/mazeGenerator'
-import {
-  MAZE_SEARCH_ALGORITHM_OPTIONS,
-  completeMazeSearch,
-  createMazeSearchState,
-  stepMazeSearch,
-  type MazeSearchState,
-  type MazeSearchAlgorithm,
-} from '../data/mazeSearch'
 import {
   buildMazeTransferPayload,
   downloadMazeTransferPayload,
 } from '../data/mazeTransfer.export'
 import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
 import {
-  addGraphTheoryEdge,
-  cycleGraphTheoryEdgeDirection,
-  createDefaultGraphTheoryData,
-  setAllGraphTheoryEdgeCosts,
-  setAllGraphTheoryNodeCosts,
-  setGraphTheoryEdgeCost,
-  setGraphTheoryNodeKind,
-  setGraphTheoryNodeCost,
-  setGraphTheoryNodePosition,
-  type GraphTheoryData,
-} from '../data/graphTheory'
+  getSolvedMazePathCost,
+  MAZE_SEARCH_ALGORITHM_OPTIONS,
+  useMazeMode,
+  type MazeSearchAlgorithm,
+} from './useMazeMode'
+import {
+  GRAPH_THEORY_SEARCH_ALGORITHM_OPTIONS,
+  getSolvedGraphPathCost,
+  useGraphTheoryMode,
+} from './useGraphTheoryMode'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
@@ -64,7 +54,6 @@ type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
-type SearchStateMap = Record<MazeSearchAlgorithm, MazeSearchState>
 type RevealedWall = {
   direction: MazeWallDirection
   x: number
@@ -97,16 +86,6 @@ function normalizeDimension(value: string, fallback: number) {
   return Math.max(MIN_DIMENSION, parsed)
 }
 
-function normalizeGraphVertexCount(value: string, fallback: number) {
-  const parsed = Number.parseInt(value, 10)
-
-  if (Number.isNaN(parsed)) {
-    return fallback
-  }
-
-  return Math.min(MAX_GRAPH_VERTEX_COUNT, Math.max(MIN_GRAPH_VERTEX_COUNT, parsed))
-}
-
 function normalizeEdgeCost(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10)
 
@@ -123,22 +102,6 @@ function getPlaybackLabel(intervalMs: number) {
 
 function createRandomSeed() {
   return Math.floor(Date.now() % 2147483647)
-}
-
-function createSearchStateMap(
-  maze: MazeSearchState['maze'],
-): SearchStateMap {
-  return {
-    astar: createMazeSearchState(maze, 'astar'),
-    bfs: createMazeSearchState(maze, 'bfs'),
-    deadEndFilling: createMazeSearchState(maze, 'deadEndFilling'),
-    dfs: createMazeSearchState(maze, 'dfs'),
-    goalPruning: createMazeSearchState(maze, 'goalPruning'),
-    humanAstar: createMazeSearchState(maze, 'humanAstar'),
-    leftHand: createMazeSearchState(maze, 'leftHand'),
-    tremaux: createMazeSearchState(maze, 'tremaux'),
-    rightHand: createMazeSearchState(maze, 'rightHand'),
-  }
 }
 
 function createBooleanGrid(maze: MazeData) {
@@ -226,69 +189,12 @@ function getAdjacentPosition(
   return position.x > 0 ? { x: position.x - 1, y: position.y } : null
 }
 
-function getDirectionBetween(
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-): MazeWallDirection | null {
-  if (to.x === from.x && to.y === from.y - 1) {
-    return 'top'
-  }
-  if (to.x === from.x + 1 && to.y === from.y) {
-    return 'right'
-  }
-  if (to.x === from.x && to.y === from.y + 1) {
-    return 'bottom'
-  }
-  if (to.x === from.x - 1 && to.y === from.y) {
-    return 'left'
-  }
-
-  return null
-}
-
-function getSolvedPathCost(searchState: MazeSearchState) {
-  if (!searchState.isSolved) {
-    return null
-  }
-
-  let totalCost = 0
-  let current = searchState.goal
-
-  while (!(current.x === searchState.start.x && current.y === searchState.start.y)) {
-    const parent = searchState.parents[current.y][current.x]
-
-    if (!parent) {
-      return null
-    }
-
-    const direction = getDirectionBetween(parent, current)
-
-    if (!direction) {
-      return null
-    }
-
-    totalCost += searchState.maze[parent.y][parent.x].costs[direction]
-    current = parent
-  }
-
-  return totalCost
-}
 
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
+  const mazeMode = useMazeMode(DEFAULT_MAZE_DIMENSIONS, 'digging')
+  const graphTheoryMode = useGraphTheoryMode()
   const [appMode, setAppMode] = useState<AppMode>('maze')
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
-  const [selectedSearchAlgorithms, setSelectedSearchAlgorithms] = useState<
-    MazeSearchAlgorithm[]
-  >(['astar'])
-  const [generationState, setGenerationState] = useState(() =>
-    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null),
-  )
-  const [searchStates, setSearchStates] = useState<SearchStateMap>(() =>
-    createSearchStateMap(
-      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null).maze,
-    ),
-  )
   const [playerState, setPlayerState] = useState<PlayerState>(() =>
     createPlayerState(
       createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null).maze,
@@ -311,21 +217,52 @@ function MazeScreen() {
   const [mazeTransferText, setMazeTransferText] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
   const [editCostInput, setEditCostInput] = useState('1')
-  const [graphEdgeCostInput, setGraphEdgeCostInput] = useState('1')
-  const [graphNodeCostInput, setGraphNodeCostInput] = useState('1')
-  const [graphVertexCountInput, setGraphVertexCountInput] = useState('7')
-  const [graphTheoryState, setGraphTheoryState] = useState<GraphTheoryData>(() =>
-    createDefaultGraphTheoryData(7),
-  )
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
   })
   const [seedInput, setSeedInput] = useState(String(DEFAULT_MAZE_SEED))
   const [useSeed, setUseSeed] = useState(false)
-  const graphTheoryData = graphTheoryState
-  const graphVertexCount = graphTheoryState.nodes.length
-  const graphEdgeCount = graphTheoryState.edges.length
+  const {
+    generationState,
+    handleGenerationComplete,
+    handleGenerationStep,
+    handleSearchAlgorithmToggle: handleMazeSearchAlgorithmToggle,
+    handleSearchComplete: handleMazeSearchComplete,
+    handleSearchReset: handleMazeSearchReset,
+    handleSearchStep: handleMazeSearchStep,
+    searchStates,
+    selectedAlgorithm,
+    selectedSearchAlgorithms,
+    setGenerationState,
+    setSelectedAlgorithm,
+  } = mazeMode
+  const {
+    graphEdgeCostInput,
+    graphEdgeCount,
+    graphNodeCostInput,
+    graphSearchStates,
+    graphTheoryData,
+    graphVertexCount,
+    graphVertexCountInput,
+    handleApplyAllGraphTheoryEdgeCosts,
+    handleApplyAllGraphTheoryNodeCosts,
+    handleApplyGraphVertexCount,
+    handleGraphSearchAlgorithmToggle,
+    handleGraphSearchComplete,
+    handleGraphSearchReset,
+    handleGraphSearchStep,
+    handleGraphTheoryEdgeAdd,
+    handleGraphTheoryEdgeCostSet,
+    handleGraphTheoryEdgeDirectionCycle,
+    handleGraphTheoryNodeCostSet,
+    handleGraphTheoryNodeKindSet,
+    handleGraphTheoryNodePositionSet,
+    selectedGraphSearchAlgorithms,
+    setGraphEdgeCostInput,
+    setGraphNodeCostInput,
+    setGraphVertexCountInput,
+  } = graphTheoryMode
   const effectiveDisplayMode: MazeDisplayMode =
     appMode === 'graphTheory' ? 'graph' : displayMode
   const effectiveShowGraphEdgeCosts =
@@ -337,7 +274,7 @@ function MazeScreen() {
     }
 
     const timerId = window.setInterval(() => {
-      setGenerationState((currentState) => stepMazeGeneration(currentState))
+      handleGenerationStep()
     }, generationIntervalMs)
 
     return () => {
@@ -348,27 +285,36 @@ function MazeScreen() {
   useEffect(() => {
     if (
       !isSearchPlaying ||
-      selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete)
+      (appMode === 'graphTheory'
+        ? selectedGraphSearchAlgorithms.every(
+            (algorithm) => graphSearchStates[algorithm].isComplete,
+          )
+        : selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete))
     ) {
       return
     }
 
     const timerId = window.setInterval(() => {
-      setSearchStates((currentStates) => {
-        const nextStates = { ...currentStates }
+      if (appMode === 'graphTheory') {
+        handleGraphSearchStep()
+        return
+      }
 
-        for (const algorithm of selectedSearchAlgorithms) {
-          nextStates[algorithm] = stepMazeSearch(nextStates[algorithm])
-        }
-
-        return nextStates
-      })
+      handleMazeSearchStep()
     }, searchIntervalMs)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [isSearchPlaying, searchIntervalMs, selectedSearchAlgorithms])
+  }, [
+    appMode,
+    graphSearchStates,
+    isSearchPlaying,
+    searchIntervalMs,
+    searchStates,
+    selectedGraphSearchAlgorithms,
+    selectedSearchAlgorithms,
+  ])
 
   useEffect(() => {
     if (generationState.isComplete) {
@@ -377,10 +323,22 @@ function MazeScreen() {
   }, [generationState.isComplete])
 
   useEffect(() => {
-    if (selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete)) {
+    if (
+      (appMode === 'graphTheory'
+        ? selectedGraphSearchAlgorithms.every(
+            (algorithm) => graphSearchStates[algorithm].isComplete,
+          )
+        : selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete))
+    ) {
       setIsSearchPlaying(false)
     }
-  }, [searchStates, selectedSearchAlgorithms])
+  }, [
+    appMode,
+    graphSearchStates,
+    searchStates,
+    selectedGraphSearchAlgorithms,
+    selectedSearchAlgorithms,
+  ])
 
   useEffect(() => {
     if (!toast) {
@@ -398,10 +356,13 @@ function MazeScreen() {
 
   useEffect(() => {
     setIsSearchPlaying(false)
-    setSearchStates(createSearchStateMap(generationState.maze))
     setPlayerState(createPlayerState(generationState.maze))
     setPlayerBumpState(null)
   }, [generationState.maze])
+
+  useEffect(() => {
+    setIsSearchPlaying(false)
+  }, [graphTheoryData])
 
   useEffect(() => {
     if (activeTab !== 'play') {
@@ -438,7 +399,7 @@ function MazeScreen() {
   }, [activeTab, generationState.maze, playerState])
 
   function handleStep() {
-    setGenerationState((currentState) => stepMazeGeneration(currentState))
+    handleGenerationStep()
   }
 
   function handlePlayToggle() {
@@ -446,15 +407,12 @@ function MazeScreen() {
   }
 
   function handleSearchStep() {
-    setSearchStates((currentStates) => {
-      const nextStates = { ...currentStates }
+    if (appMode === 'graphTheory') {
+      handleGraphSearchStep()
+      return
+    }
 
-      for (const algorithm of selectedSearchAlgorithms) {
-        nextStates[algorithm] = stepMazeSearch(nextStates[algorithm])
-      }
-
-      return nextStates
-    })
+    handleMazeSearchStep()
   }
 
   function handleSearchPlayToggle() {
@@ -491,20 +449,18 @@ function MazeScreen() {
 
   function handleComplete() {
     setIsPlaying(false)
-    setGenerationState((currentState) => completeMazeGeneration(currentState))
+    handleGenerationComplete()
   }
 
   function handleSearchComplete() {
     setIsSearchPlaying(false)
-    setSearchStates((currentStates) => {
-      const nextStates = { ...currentStates }
 
-      for (const algorithm of selectedSearchAlgorithms) {
-        nextStates[algorithm] = completeMazeSearch(nextStates[algorithm])
-      }
+    if (appMode === 'graphTheory') {
+      handleGraphSearchComplete()
+      return
+    }
 
-      return nextStates
-    })
+    handleMazeSearchComplete()
   }
 
   function buildDimensionsFromInputs(): MazeDimensions {
@@ -559,7 +515,13 @@ function MazeScreen() {
 
   function handleSearchReset() {
     setIsSearchPlaying(false)
-    setSearchStates(createSearchStateMap(generationState.maze))
+
+    if (appMode === 'graphTheory') {
+      handleGraphSearchReset()
+      return
+    }
+
+    handleMazeSearchReset()
   }
 
   function handlePlayReset() {
@@ -595,22 +557,15 @@ function MazeScreen() {
 
   function handleSearchAlgorithmToggle(nextAlgorithm: MazeSearchAlgorithm) {
     setIsSearchPlaying(false)
-    setSelectedSearchAlgorithms((currentAlgorithms) => {
-      if (currentAlgorithms.includes(nextAlgorithm)) {
-        if (currentAlgorithms.length === 1) {
-          return currentAlgorithms
-        }
-
-        return currentAlgorithms.filter((algorithm) => algorithm !== nextAlgorithm)
-      }
-
-      return [...currentAlgorithms, nextAlgorithm]
-    })
+    handleMazeSearchAlgorithmToggle(nextAlgorithm)
   }
 
-  const areSelectedSearchesComplete = selectedSearchAlgorithms.every(
-    (algorithm) => searchStates[algorithm].isComplete,
-  )
+  const areSelectedSearchesComplete =
+    appMode === 'graphTheory'
+      ? selectedGraphSearchAlgorithms.every(
+          (algorithm) => graphSearchStates[algorithm].isComplete,
+        )
+      : selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete)
 
   function handlePlayerMove(direction: MazeWallDirection) {
     setPlayerState((currentState) => {
@@ -719,73 +674,11 @@ function MazeScreen() {
     )
   }
 
-  function handleGraphTheoryEdgeCostSet(edgeIndex: number, nextCost: number) {
-    setGraphTheoryState((currentGraph) =>
-      setGraphTheoryEdgeCost(currentGraph, edgeIndex, nextCost),
-    )
-  }
-
-  function handleGraphTheoryNodeCostSet(nodeIndex: number, nextCost: number) {
-    setGraphTheoryState((currentGraph) =>
-      setGraphTheoryNodeCost(currentGraph, nodeIndex, nextCost),
-    )
-  }
-
-  function handleGraphTheoryNodeKindSet(
-    nodeIndex: number,
-    kind: 'goal' | 'start',
-  ) {
-    setGraphTheoryState((currentGraph) =>
-      setGraphTheoryNodeKind(currentGraph, nodeIndex, kind),
-    )
-  }
-
-  function handleGraphTheoryEdgeAdd(
-    fromNodeIndex: number,
-    toNodeIndex: number,
-    cost: number,
-  ) {
-    setGraphTheoryState((currentGraph) =>
-      addGraphTheoryEdge(currentGraph, fromNodeIndex, toNodeIndex, cost),
-    )
-  }
-
-  function handleGraphTheoryNodePositionSet(
-    nodeIndex: number,
-    position: { x: number; y: number },
-  ) {
-    setGraphTheoryState((currentGraph) =>
-      setGraphTheoryNodePosition(currentGraph, nodeIndex, position),
-    )
-  }
-
-  function handleGraphTheoryEdgeDirectionCycle(edgeIndex: number) {
-    setGraphTheoryState((currentGraph) =>
-      cycleGraphTheoryEdgeDirection(currentGraph, edgeIndex),
-    )
-  }
-
   function handleApplyAllEdgeCosts() {
     const nextCost = normalizeEdgeCost(editCostInput, 1)
 
     setIsPlaying(false)
     setGenerationState((currentState) => setAllMazeEdgeCosts(currentState, nextCost))
-  }
-
-  function handleApplyAllGraphTheoryEdgeCosts() {
-    const nextCost = normalizeEdgeCost(graphEdgeCostInput, 1)
-    setGraphTheoryState((currentGraph) => setAllGraphTheoryEdgeCosts(currentGraph, nextCost))
-  }
-
-  function handleApplyAllGraphTheoryNodeCosts() {
-    const nextCost = normalizeEdgeCost(graphNodeCostInput, 1)
-    setGraphTheoryState((currentGraph) => setAllGraphTheoryNodeCosts(currentGraph, nextCost))
-  }
-
-  function handleApplyGraphVertexCount() {
-    const nextCount = normalizeGraphVertexCount(graphVertexCountInput, graphTheoryState.nodes.length)
-    setGraphVertexCountInput(String(nextCount))
-    setGraphTheoryState(createDefaultGraphTheoryData(nextCount))
   }
 
   function handleExportMaze() {
@@ -880,6 +773,37 @@ function MazeScreen() {
   }
 
   function renderTopActions() {
+    if (appMode === 'graphTheory' && activeTab === 'search') {
+      return (
+        <>
+          <button
+            className="app__button"
+            onClick={handleSearchStep}
+            disabled={areSelectedSearchesComplete || isSearchPlaying}
+          >
+            {mazeScreenText.buttons.step}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleSearchPlayToggle}
+            disabled={areSelectedSearchesComplete}
+          >
+            {isSearchPlaying ? mazeScreenText.buttons.stop : mazeScreenText.buttons.play}
+          </button>
+          <button
+            className="app__button"
+            onClick={handleSearchComplete}
+            disabled={areSelectedSearchesComplete}
+          >
+            {mazeScreenText.buttons.complete}
+          </button>
+          <button className="app__button app__button--secondary" onClick={handleSearchReset}>
+            {mazeScreenText.buttons.reset}
+          </button>
+        </>
+      )
+    }
+
     if (appMode === 'graphTheory') {
       return null
     }
@@ -1058,6 +982,43 @@ function MazeScreen() {
               showEdgeCosts={effectiveShowGraphEdgeCosts}
             />
           </div>
+        ) : appMode === 'graphTheory' && activeTab === 'search' ? (
+          <div className="app__searchPanels">
+            {selectedGraphSearchAlgorithms.map((algorithm) => {
+              const searchState = graphSearchStates[algorithm]
+              const solvedPathCost = getSolvedGraphPathCost(searchState)
+
+              return (
+                <section key={algorithm} className="app__searchPanel">
+                  <header className="app__searchPanelHeader">
+                    <h2>{mazeScreenText.graphTheorySearch.options[algorithm]}</h2>
+                    <p>
+                      {mazeScreenText.search.status.steps}: {searchState.stepCount}
+                      {solvedPathCost !== null
+                        ? ` / ${mazeScreenText.search.status.cost}: ${solvedPathCost}`
+                        : ''}
+                      {isSearchPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+                      {searchState.isSolved ? ` / ${mazeScreenText.search.status.solved}` : ''}
+                      {searchState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+                    </p>
+                  </header>
+                  <GraphTheoryCanvas
+                    currentNodeId={
+                      searchState.isComplete || searchState.stepCount === 0
+                        ? null
+                        : searchState.currentNodeId
+                    }
+                    graph={graphTheoryData}
+                    openNodeIds={searchState.openNodeIds}
+                    pathEdgeIds={searchState.pathEdgeIds}
+                    pathNodeIds={searchState.pathNodeIds}
+                    showEdgeCosts={effectiveShowGraphEdgeCosts}
+                    visitedNodeIds={searchState.visitedNodeIds}
+                  />
+                </section>
+              )
+            })}
+          </div>
         ) : appMode === 'graphTheory' ? (
           <GraphTheoryCanvas
             graph={graphTheoryData}
@@ -1067,7 +1028,7 @@ function MazeScreen() {
           <div className="app__searchPanels">
             {selectedSearchAlgorithms.map((algorithm) => {
               const searchState = searchStates[algorithm]
-              const solvedPathCost = getSolvedPathCost(searchState)
+              const solvedPathCost = getSolvedMazePathCost(searchState)
 
               return (
                 <section key={algorithm} className="app__searchPanel">
@@ -1330,6 +1291,59 @@ function MazeScreen() {
                   </div>
                 </div>
               ) : null}
+            </div>
+          ) : appMode === 'graphTheory' && activeTab === 'search' ? (
+            <div className="app__controlsBody">
+              <div className="app__field">
+                <div className="app__fieldHeader">
+                  <span className="app__fieldLabel">{mazeScreenText.speed.search}</span>
+                  <span className="app__fieldMeta">{getPlaybackLabel(searchIntervalMs)}</span>
+                </div>
+                <input
+                  className="app__range"
+                  type="range"
+                  min={MIN_PLAYBACK_INTERVAL_MS}
+                  max={MAX_PLAYBACK_INTERVAL_MS}
+                  step={10}
+                  value={MAX_PLAYBACK_INTERVAL_MS + MIN_PLAYBACK_INTERVAL_MS - searchIntervalMs}
+                  onChange={(event) =>
+                    setSearchIntervalMs(
+                      MAX_PLAYBACK_INTERVAL_MS +
+                        MIN_PLAYBACK_INTERVAL_MS -
+                        Number(event.target.value),
+                    )
+                  }
+                />
+                <div className="app__rangeLabels" aria-hidden="true">
+                  <span>{mazeScreenText.speed.slow}</span>
+                  <span>{mazeScreenText.speed.fast}</span>
+                </div>
+              </div>
+              <div className="app__field">
+                <span className="app__fieldLabel">
+                  {mazeScreenText.graphTheorySearch.algorithmLabel}
+                </span>
+                <div
+                  className="app__tabs app__tabs--stacked"
+                  role="tablist"
+                  aria-label="Graph theory search algorithms"
+                >
+                  {GRAPH_THEORY_SEARCH_ALGORITHM_OPTIONS.map((algorithm) => (
+                    <button
+                      key={algorithm.value}
+                      className={`app__tab ${
+                        selectedGraphSearchAlgorithms.includes(algorithm.value)
+                          ? 'app__tab--active'
+                          : ''
+                      }`}
+                      type="button"
+                      onClick={() => handleGraphSearchAlgorithmToggle(algorithm.value)}
+                    >
+                      {algorithm.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : appMode === 'graphTheory' ? (
             <div className="app__controlsBody">
