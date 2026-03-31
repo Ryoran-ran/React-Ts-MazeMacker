@@ -157,6 +157,7 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
   const nodes: GraphTheoryNode[] = Array.from({ length: safeNodeCount }, (_, index) => ({
     cost: defaultNodeCosts[index] ?? 1,
     id: index,
+    kind: index === 0 ? 'start' : index === safeNodeCount - 1 ? 'goal' : undefined,
     position: DEFAULT_GRAPH_POSITIONS[index],
   }))
 
@@ -201,6 +202,20 @@ export function setGraphTheoryNodeCost(
         ? { ...node, cost: Math.max(0, Math.trunc(cost)) }
         : node,
     ),
+  }
+}
+
+export function setGraphTheoryNodeKind(
+  graph: GraphTheoryData,
+  nodeIndex: number,
+  kind: 'goal' | 'start',
+): GraphTheoryData {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node, index) => ({
+      ...node,
+      kind: index === nodeIndex ? kind : node.kind === kind ? undefined : node.kind,
+    })),
   }
 }
 

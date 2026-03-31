@@ -12,6 +12,7 @@ type GraphTheoryCanvasProps = {
   editCostValue?: number
   editMode?: 'cost' | 'goal' | 'start' | 'wall'
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
+  onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
   showEdgeCosts?: boolean
 }
@@ -22,6 +23,7 @@ function GraphTheoryCanvas({
   editCostValue = 1,
   editMode = 'wall',
   onEdgeCostSet,
+  onNodeKindSet,
   onNodeCostSet,
   showEdgeCosts = true,
 }: GraphTheoryCanvasProps) {
@@ -121,9 +123,9 @@ function GraphTheoryCanvas({
       onClick={(event) => {
         if (
           !editable ||
-          editMode !== 'cost' ||
           !containerRef.current ||
-          (!onEdgeCostSet && !onNodeCostSet)
+          (editMode === 'cost' && !onEdgeCostSet && !onNodeCostSet) ||
+          ((editMode === 'start' || editMode === 'goal') && !onNodeKindSet)
         ) {
           return
         }
@@ -135,8 +137,17 @@ function GraphTheoryCanvas({
         const pointerY = (event.clientY - rect.top) * scaleY
         const nodeIndex = getNearestNodeIndex(pointerX, pointerY)
 
-        if (nodeIndex !== null) {
+        if (nodeIndex !== null && (editMode === 'start' || editMode === 'goal')) {
+          onNodeKindSet?.(nodeIndex, editMode)
+          return
+        }
+
+        if (nodeIndex !== null && editMode === 'cost') {
           onNodeCostSet?.(nodeIndex, editCostValue)
+          return
+        }
+
+        if (editMode !== 'cost') {
           return
         }
 
@@ -153,7 +164,11 @@ function GraphTheoryCanvas({
         setHoverNodeIndex(null)
       }}
       onMouseMove={(event) => {
-        if (!editable || editMode !== 'cost' || !containerRef.current) {
+        if (
+          !editable ||
+          (editMode !== 'cost' && editMode !== 'start' && editMode !== 'goal') ||
+          !containerRef.current
+        ) {
           setHoverEdgeIndex(null)
           setHoverNodeIndex(null)
           return
@@ -167,7 +182,11 @@ function GraphTheoryCanvas({
         const nextNodeIndex = getNearestNodeIndex(pointerX, pointerY)
 
         setHoverNodeIndex(nextNodeIndex)
-        setHoverEdgeIndex(nextNodeIndex === null ? getNearestEdgeIndex(pointerX, pointerY) : null)
+        setHoverEdgeIndex(
+          editMode === 'cost' && nextNodeIndex === null
+            ? getNearestEdgeIndex(pointerX, pointerY)
+            : null,
+        )
       }}
     >
       <svg
@@ -223,6 +242,12 @@ function GraphTheoryCanvas({
         {graph.nodes.map((node) => {
           const projected = project(node.position)
           const isHovered = hoverNodeIndex === node.id
+          const hoverFill =
+            editMode === 'start'
+              ? 'rgba(37, 99, 235, 0.16)'
+              : editMode === 'goal'
+                ? 'rgba(220, 38, 38, 0.16)'
+                : 'rgba(37, 99, 235, 0.10)'
           const fill =
             node.kind === 'start'
               ? '#dbeafe'
@@ -232,6 +257,14 @@ function GraphTheoryCanvas({
 
           return (
             <g key={node.id}>
+              {isHovered ? (
+                <circle
+                  cx={projected.x}
+                  cy={projected.y}
+                  r={nodeRadius * 1.18}
+                  fill={hoverFill}
+                />
+              ) : null}
               <circle
                 cx={projected.x}
                 cy={projected.y}
@@ -250,6 +283,26 @@ function GraphTheoryCanvas({
               >
                 {node.cost}
               </text>
+              {node.kind ? (
+                <g>
+                  <circle
+                    cx={projected.x - nodeRadius * 0.56}
+                    cy={projected.y - nodeRadius * 0.56}
+                    r={Math.max(9, nodeRadius * 0.28)}
+                    fill={node.kind === 'start' ? '#2563eb' : '#dc2626'}
+                  />
+                  <text
+                    x={projected.x - nodeRadius * 0.56}
+                    y={projected.y - nodeRadius * 0.56 + 4}
+                    fill="#ffffff"
+                    fontSize={Math.max(10, nodeRadius * 0.3)}
+                    fontWeight="700"
+                    textAnchor="middle"
+                  >
+                    {node.kind === 'start' ? 'S' : 'G'}
+                  </text>
+                </g>
+              ) : null}
             </g>
           )
         })}

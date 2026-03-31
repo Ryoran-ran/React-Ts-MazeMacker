@@ -39,6 +39,7 @@ import {
   createDefaultGraphTheoryData,
   setAllGraphTheoryEdgeCosts,
   setGraphTheoryEdgeCost,
+  setGraphTheoryNodeKind,
   setGraphTheoryNodeCost,
   type GraphTheoryData,
 } from '../data/graphTheory'
@@ -703,6 +704,15 @@ function MazeScreen() {
     )
   }
 
+  function handleGraphTheoryNodeKindSet(
+    nodeIndex: number,
+    kind: 'goal' | 'start',
+  ) {
+    setGraphTheoryState((currentGraph) =>
+      setGraphTheoryNodeKind(currentGraph, nodeIndex, kind),
+    )
+  }
+
   function handleApplyAllEdgeCosts() {
     const nextCost = normalizeEdgeCost(editCostInput, 1)
 
@@ -974,8 +984,9 @@ function MazeScreen() {
               graph={graphTheoryData}
               editable
               editCostValue={normalizeEdgeCost(editCostInput, 1)}
-              editMode="cost"
+              editMode={editMode}
               onEdgeCostSet={handleGraphTheoryEdgeCostSet}
+              onNodeKindSet={handleGraphTheoryNodeKindSet}
               onNodeCostSet={handleGraphTheoryNodeCostSet}
               showEdgeCosts={effectiveShowGraphEdgeCosts}
             />
@@ -1139,27 +1150,52 @@ function MazeScreen() {
         <section className="app__controls">
           {appMode === 'graphTheory' && activeTab === 'edit' ? (
             <div className="app__controlsBody">
-              <div className="app__field">
-                <span className="app__fieldLabel">{mazeScreenText.edit.costLabel}</span>
-                <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
-                  <input
-                    className="app__input"
-                    type="number"
-                    min={MIN_EDGE_COST}
-                    max={MAX_EDGE_COST}
-                    step={1}
-                    value={editCostInput}
-                    onChange={(event) => setEditCostInput(event.target.value)}
-                  />
-                  <button
-                    className="app__button app__button--compact app__button--secondary"
-                    type="button"
-                    onClick={handleApplyAllEdgeCosts}
-                  >
-                    {mazeScreenText.edit.applyAllCosts}
-                  </button>
-                </div>
+              <div className="app__tabs app__tabs--graphEdit" role="tablist" aria-label="Graph edit modes">
+                <button
+                  className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('cost')}
+                >
+                  {mazeScreenText.edit.modes.cost}
+                </button>
+                <button
+                  className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('start')}
+                >
+                  {mazeScreenText.edit.modes.start}
+                </button>
+                <button
+                  className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('goal')}
+                >
+                  {mazeScreenText.edit.modes.goal}
+                </button>
               </div>
+              {editMode === 'cost' ? (
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.edit.costLabel}</span>
+                  <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_EDGE_COST}
+                      max={MAX_EDGE_COST}
+                      step={1}
+                      value={editCostInput}
+                      onChange={(event) => setEditCostInput(event.target.value)}
+                    />
+                    <button
+                      className="app__button app__button--compact app__button--secondary"
+                      type="button"
+                      onClick={handleApplyAllEdgeCosts}
+                    >
+                      {mazeScreenText.edit.applyAllCosts}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : appMode === 'graphTheory' ? (
             <div className="app__controlsBody">
