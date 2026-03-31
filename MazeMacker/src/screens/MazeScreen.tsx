@@ -33,6 +33,11 @@ import {
   type MazeSearchAlgorithm,
 } from './useMazeMode'
 import {
+  calculateHeuristic,
+  getCellNeighbor,
+  getMovementCost,
+} from '../data/mazeSearch.shared'
+import {
   GRAPH_THEORY_SEARCH_ALGORITHM_OPTIONS,
   getOptimalGraphPlayCost,
   getSolvedGraphPathCost,
@@ -42,6 +47,7 @@ import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
 const DEFAULT_SEARCH_INTERVAL_MS = 40
+const DEFAULT_CLICK_MOVE_INTERVAL_MS = 90
 const MAX_PLAYBACK_INTERVAL_MS = 180
 const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
@@ -54,6 +60,7 @@ type EditMode = MazeEditMode | 'direction' | 'move' | 'name'
 type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
+type PlayClickMoveMode = 'disabled' | 'enabled'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
 type GraphNodeTextOrder = 'costFirst' | 'labelFirst'
 type RevealedWall = {
@@ -73,6 +80,7 @@ type PlayerBumpState = {
   direction: MazeWallDirection
   tick: number
 }
+type PlayerTravelPath = Array<{ x: number; y: number }>
 type ToastState = {
   message: string
   tone: 'error' | 'success'
@@ -191,6 +199,125 @@ function getAdjacentPosition(
   return position.x > 0 ? { x: position.x - 1, y: position.y } : null
 }
 
+function getDirectionTowardTarget(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): MazeWallDirection {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? 'right' : 'left'
+  }
+
+  return dy >= 0 ? 'bottom' : 'top'
+}
+
+function findMazeAStarPath(
+  maze: MazeData,
+  start: { x: number; y: number },
+  goal: { x: number; y: number },
+) {
+  if (start.x === goal.x && start.y === goal.y) {
+    return [start]
+  }
+
+  const rowCount = maze.length
+  const columnCount = maze[0]?.length ?? 0
+  const costs = maze.map((row) => row.map(() => Number.POSITIVE_INFINITY))
+  const parents = maze.map((row) => row.map(() => null as { x: number; y: number } | null))
+  const frontier: Array<{ cost: number; position: { x: number; y: number } }> = [
+    { cost: 0, position: start },
+  ]
+
+  costs[start.y][start.x] = 0
+
+  while (frontier.length > 0) {
+    let bestIndex = 0
+    let bestHeuristic = calculateHeuristic(frontier[0].position, goal)
+    let bestScore = frontier[0].cost + bestHeuristic
+
+    for (let index = 1; index < frontier.length; index += 1) {
+      const heuristic = calculateHeuristic(frontier[index].position, goal)
+      const score = frontier[index].cost + heuristic
+
+      if (score < bestScore || (score === bestScore && heuristic < bestHeuristic)) {
+        bestIndex = index
+        bestHeuristic = heuristic
+        bestScore = score
+      }
+    }
+
+    const [current] = frontier.splice(bestIndex, 1)
+    const { position } = current
+
+    if (current.cost > costs[position.y][position.x]) {
+      continue
+    }
+
+    if (position.x === goal.x && position.y === goal.y) {
+      const path: Array<{ x: number; y: number }> = []
+      let cursor: { x: number; y: number } | null = goal
+
+      while (cursor) {
+        path.push(cursor)
+
+        if (cursor.x === start.x && cursor.y === start.y) {
+          break
+        }
+
+        cursor = parents[cursor.y][cursor.x]
+      }
+
+      return path.reverse()
+    }
+
+    for (const direction of ['top', 'right', 'bottom', 'left'] as MazeWallDirection[]) {
+      if (maze[position.y][position.x].walls[direction]) {
+        continue
+      }
+
+      const next = getCellNeighbor(maze, position, direction)
+
+      if (!next || next.x < 0 || next.x >= columnCount || next.y < 0 || next.y >= rowCount) {
+        continue
+      }
+
+      const nextCost = current.cost + getMovementCost(maze, position, direction)
+
+      if (nextCost >= costs[next.y][next.x]) {
+        continue
+      }
+
+      costs[next.y][next.x] = nextCost
+      parents[next.y][next.x] = position
+      frontier.push({ cost: nextCost, position: next })
+    }
+  }
+
+  return null
+}
+
+function getDirectionBetweenCells(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): MazeWallDirection | null {
+  if (to.x === from.x && to.y === from.y - 1) {
+    return 'top'
+  }
+  if (to.x === from.x + 1 && to.y === from.y) {
+    return 'right'
+  }
+  if (to.x === from.x && to.y === from.y + 1) {
+    return 'bottom'
+  }
+  if (to.x === from.x - 1 && to.y === from.y) {
+    return 'left'
+  }
+
+  return null
+}
+
 
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -203,6 +330,7 @@ function MazeScreen() {
     ),
   )
   const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
+  const [playerTravelPath, setPlayerTravelPath] = useState<PlayerTravelPath>([])
   const [isPlaying, setIsPlaying] = useState(false)
   const [isSearchPlaying, setIsSearchPlaying] = useState(false)
   const [generationIntervalMs, setGenerationIntervalMs] = useState(DEFAULT_GENERATION_INTERVAL_MS)
@@ -216,6 +344,7 @@ function MazeScreen() {
     useState<PlayWallDiscoveryMode>('visited')
   const [playWallVisibilityMode, setPlayWallVisibilityMode] =
     useState<PlayWallVisibilityMode>('all')
+  const [playClickMoveMode, setPlayClickMoveMode] = useState<PlayClickMoveMode>('disabled')
   const [isGraphNodeLabelVisible, setIsGraphNodeLabelVisible] = useState(true)
   const [graphNodeTextOrder, setGraphNodeTextOrder] = useState<GraphNodeTextOrder>('labelFirst')
   const [mazeTransferText, setMazeTransferText] = useState('')
@@ -369,7 +498,31 @@ function MazeScreen() {
     setIsSearchPlaying(false)
     setPlayerState(createPlayerState(generationState.maze))
     setPlayerBumpState(null)
+    setPlayerTravelPath([])
   }, [generationState.maze])
+
+  useEffect(() => {
+    if (activeTab !== 'play' || playerTravelPath.length === 0 || playerState.isSolved) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const nextPosition = playerTravelPath[0]
+      const direction = getDirectionBetweenCells(playerState.position, nextPosition)
+
+      if (!direction) {
+        setPlayerTravelPath((currentPath) => currentPath.slice(1))
+        return
+      }
+
+      handlePlayerMove(direction, true)
+      setPlayerTravelPath((currentPath) => currentPath.slice(1))
+    }, DEFAULT_CLICK_MOVE_INTERVAL_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeTab, playerState.isSolved, playerState.position, playerTravelPath])
 
   useEffect(() => {
     setIsSearchPlaying(false)
@@ -538,6 +691,7 @@ function MazeScreen() {
   function handlePlayReset() {
     setPlayerState(createPlayerState(generationState.maze))
     setPlayerBumpState(null)
+    setPlayerTravelPath([])
   }
 
   function handlePlayGenerate() {
@@ -548,6 +702,7 @@ function MazeScreen() {
     )
 
     setIsPlaying(false)
+    setPlayerTravelPath([])
     setDimensionInputs({
       columns: String(nextDimensions.columns),
       rows: String(nextDimensions.rows),
@@ -578,7 +733,13 @@ function MazeScreen() {
         )
       : selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete)
 
-  function handlePlayerMove(direction: MazeWallDirection) {
+  function handlePlayerMove(
+    direction: MazeWallDirection,
+    preserveTravelPath = false,
+  ) {
+    if (!preserveTravelPath) {
+      setPlayerTravelPath([])
+    }
     setPlayerState((currentState) => {
       if (currentState.isSolved) {
         return currentState
@@ -654,6 +815,24 @@ function MazeScreen() {
         visited,
       }
     })
+  }
+
+  function handlePlayerCellActivate(target: { x: number; y: number }) {
+    if (playClickMoveMode !== 'enabled') {
+      return
+    }
+
+    const path = findMazeAStarPath(generationState.maze, playerState.position, target)
+
+    if (!path || path.length <= 1) {
+      setPlayerBumpState({
+        direction: getDirectionTowardTarget(playerState.position, target),
+        tick: Date.now(),
+      })
+      return
+    }
+
+    setPlayerTravelPath(path.slice(1))
   }
 
   function handleWallToggle(
@@ -1141,6 +1320,7 @@ function MazeScreen() {
               currentCell={playerState.position}
               currentCellSpan={{ columns: 1, rows: 1 }}
               cellSize={24}
+              onCellActivate={handlePlayerCellActivate}
             />
           </div>
         ) : (
@@ -1778,6 +1958,29 @@ function MazeScreen() {
           ) : activeTab === 'play' ? (
             <>
               <div className="app__controlsBody">
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.play.clickMoveLabel}</span>
+                  <div
+                    className="app__tabs app__tabs--search"
+                    role="tablist"
+                    aria-label="Click move settings"
+                  >
+                    <button
+                      className={`app__tab ${playClickMoveMode === 'enabled' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayClickMoveMode('enabled')}
+                    >
+                      {mazeScreenText.play.clickMoveEnabled}
+                    </button>
+                    <button
+                      className={`app__tab ${playClickMoveMode === 'disabled' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setPlayClickMoveMode('disabled')}
+                    >
+                      {mazeScreenText.play.clickMoveDisabled}
+                    </button>
+                  </div>
+                </div>
                 <div className="app__field">
                   <span className="app__fieldLabel">{mazeScreenText.play.wallLabel}</span>
                 <div className="app__tabs app__tabs--playWalls" role="tablist" aria-label="Play wall settings">

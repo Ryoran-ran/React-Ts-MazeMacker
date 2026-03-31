@@ -152,6 +152,9 @@
   },
   "play": {
     "generate": "迷路生成",
+    "clickMoveLabel": "クリック移動",
+    "clickMoveEnabled": "できる",
+    "clickMoveDisabled": "できない",
     "handGuideHidden": "表示しない",
     "handGuideLabel": "手のガイド",
     "handGuideLeft": "左手",
