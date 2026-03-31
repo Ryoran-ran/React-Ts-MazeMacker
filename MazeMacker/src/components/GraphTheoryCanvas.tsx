@@ -11,6 +11,8 @@ type CellPosition = {
 }
 
 type GraphTheoryCanvasProps = {
+  activeEdgeIds?: boolean[]
+  activeNodeIds?: boolean[]
   currentNodeId?: number | null
   graph: GraphTheoryData
   editable?: boolean
@@ -23,6 +25,7 @@ type GraphTheoryCanvasProps = {
   onEdgeAdd?: (fromNodeIndex: number, toNodeIndex: number, cost: number) => void
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
   onEdgeDirectionCycle?: (edgeIndex: number) => void
+  onNodeActivate?: (nodeIndex: number) => void
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
   onNodeLabelSet?: (nodeIndex: number, label: string) => void
@@ -35,6 +38,8 @@ type GraphTheoryCanvasProps = {
 }
 
 function GraphTheoryCanvas({
+  activeEdgeIds,
+  activeNodeIds,
   currentNodeId = null,
   graph,
   editable = false,
@@ -47,6 +52,7 @@ function GraphTheoryCanvas({
   onEdgeAdd,
   onEdgeCostSet,
   onEdgeDirectionCycle,
+  onNodeActivate,
   onNodeKindSet,
   onNodeCostSet,
   onNodeLabelSet,
@@ -213,7 +219,7 @@ function GraphTheoryCanvas({
       className={`graph-theory-canvas ${editable ? 'graph-theory-canvas--editable' : ''}`}
       onClick={(event) => {
         if (
-          !editable ||
+          (!editable && !onNodeActivate) ||
           !containerRef.current ||
           (editMode === 'cost' && !onEdgeCostSet && !onNodeCostSet) ||
           (editMode === 'direction' && !onEdgeDirectionCycle) ||
@@ -230,6 +236,13 @@ function GraphTheoryCanvas({
         const pointerY = (event.clientY - rect.top) * scaleY
         const edgeIndex = getNearestEdgeIndex(pointerX, pointerY)
         const nodeIndex = getNearestNodeIndex(pointerX, pointerY)
+
+        if (!editable) {
+          if (nodeIndex !== null) {
+            onNodeActivate?.(nodeIndex)
+          }
+          return
+        }
 
         if (editMode === 'direction') {
           if (edgeIndex !== null) {
@@ -310,7 +323,7 @@ function GraphTheoryCanvas({
       }}
       onMouseMove={(event) => {
         if (
-          !editable ||
+          (!editable && !onNodeActivate) ||
           (editMode !== 'cost' &&
             editMode !== 'direction' &&
             editMode !== 'start' &&
@@ -341,6 +354,12 @@ function GraphTheoryCanvas({
         const nextNodeIndex = getNearestNodeIndex(pointerX, pointerY)
         const nextEdgeIndex = getNearestEdgeIndex(pointerX, pointerY)
 
+        if (!editable) {
+          setHoverNodeIndex(nextNodeIndex)
+          setHoverEdgeIndex(nextNodeIndex === null ? null : nextEdgeIndex)
+          return
+        }
+
         if (editMode === 'direction') {
           setHoverNodeIndex(null)
           setHoverEdgeIndex(nextEdgeIndex)
@@ -369,14 +388,19 @@ function GraphTheoryCanvas({
           const labelY = (from.y + to.y) / 2
           const isHovered = hoverEdgeIndex === edgeIndex
           const isPath = pathEdgeIds?.[edgeIndex]
+          const isActive = Boolean(activeEdgeIds?.[edgeIndex])
           const stroke =
             isPath
               ? '#4ade80'
+              : isActive
+                ? '#facc15'
               : isHovered
                 ? 'rgba(37, 99, 235, 0.22)'
                 : '#94a3b8'
           const strokeWidth = isPath
             ? edgeStroke * 1.7
+            : isActive
+              ? edgeStroke * 1.4
             : isHovered
               ? edgeStroke * 1.2
               : edgeStroke
@@ -423,6 +447,7 @@ function GraphTheoryCanvas({
           const isPendingEdgeStart = pendingEdgeStartNodeIndex === node.id
           const isCurrent = currentNodeId === node.id
           const isPath = Boolean(pathNodeIds?.[node.id])
+          const isActive = Boolean(activeNodeIds?.[node.id])
           const isOpen = Boolean(openNodeIds?.[node.id])
           const isVisited = Boolean(visitedNodeIds?.[node.id])
           const hoverFill =
@@ -440,8 +465,10 @@ function GraphTheoryCanvas({
           const fill =
             isCurrent
               ? '#f59e0b'
-              : isPath
-                ? '#86efac'
+                : isPath
+                  ? '#86efac'
+                  : isActive
+                    ? '#fde68a'
                 : isOpen
                   ? '#fde68a'
                   : isVisited
@@ -482,9 +509,11 @@ function GraphTheoryCanvas({
                     ? '#d97706'
                     : isHovered || isPendingEdgeStart
                       ? '#2563eb'
+                      : isActive
+                        ? '#eab308'
                       : '#e5e7eb'
                 }
-                strokeWidth={isCurrent || isHovered || isPendingEdgeStart ? 4 : 2}
+                strokeWidth={isCurrent || isHovered || isPendingEdgeStart || isActive ? 4 : 2}
               />
               {isNodeLabelVisible ? (
                 <>
@@ -553,6 +582,7 @@ function GraphTheoryCanvas({
           const to = project(graph.nodes[edge.to].position)
           const isHovered = hoverEdgeIndex === edgeIndex
           const arrow = getArrowPoints(from, to, edge.direction === 'backward')
+          const isActive = Boolean(activeEdgeIds?.[edgeIndex])
           const isPath = Boolean(pathEdgeIds?.[edgeIndex])
 
           if (!arrow) {
@@ -563,7 +593,7 @@ function GraphTheoryCanvas({
             <polygon
               key={`arrow-${edge.from}-${edge.to}-${edgeIndex}`}
               points={`${arrow.tipX},${arrow.tipY} ${arrow.leftX},${arrow.leftY} ${arrow.rightX},${arrow.rightY}`}
-              fill={isPath ? '#16a34a' : isHovered ? '#0f172a' : '#475569'}
+              fill={isPath ? '#16a34a' : isActive ? '#a16207' : isHovered ? '#0f172a' : '#475569'}
               stroke="#ffffff"
               strokeWidth={3}
               strokeLinejoin="round"

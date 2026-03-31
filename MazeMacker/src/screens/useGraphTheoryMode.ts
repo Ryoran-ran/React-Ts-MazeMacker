@@ -8,6 +8,10 @@ import {
   type GraphTheorySearchState,
 } from '../data/graphTheorySearch'
 import {
+  findGraphTheoryNodeByKind,
+  getGraphTheoryNeighbors,
+} from '../data/graphTheorySearch.shared'
+import {
   addGraphTheoryEdge,
   cycleGraphTheoryEdgeDirection,
   createDefaultGraphTheoryData,
@@ -28,6 +32,18 @@ const MIN_GRAPH_VERTEX_COUNT = 2
 const MAX_GRAPH_VERTEX_COUNT = 24
 
 type GraphTheorySearchStateMap = Record<GraphTheorySearchAlgorithm, GraphTheorySearchState>
+type GraphTheoryPlayState = {
+  currentNodeId: number
+  goalNodeId: number
+  isSolved: boolean
+  reachableEdgeIds: boolean[]
+  reachableNodeIds: boolean[]
+  startNodeId: number
+  stepCount: number
+  totalCost: number
+  traversedEdgeIds: boolean[]
+  traversedNodeIds: boolean[]
+}
 
 function createGraphTheorySearchStateMap(
   graph: GraphTheoryData,
@@ -36,6 +52,36 @@ function createGraphTheorySearchStateMap(
     astar: createGraphTheorySearchState(graph, 'astar'),
     dfs: createGraphTheorySearchState(graph, 'dfs'),
     dijkstra: createGraphTheorySearchState(graph, 'dijkstra'),
+  }
+}
+
+function createGraphTheoryPlayState(graph: GraphTheoryData): GraphTheoryPlayState {
+  const startNodeId = findGraphTheoryNodeByKind(graph, 'start') ?? 0
+  const goalNodeId =
+    findGraphTheoryNodeByKind(graph, 'goal') ?? Math.max(0, graph.nodes.length - 1)
+  const reachableNodeIds = graph.nodes.map(() => false)
+  const reachableEdgeIds = graph.edges.map(() => false)
+  const traversedNodeIds = graph.nodes.map(() => false)
+  const traversedEdgeIds = graph.edges.map(() => false)
+
+  traversedNodeIds[startNodeId] = true
+
+  for (const neighbor of getGraphTheoryNeighbors(graph, startNodeId)) {
+    reachableNodeIds[neighbor.nodeId] = true
+    reachableEdgeIds[neighbor.edgeIndex] = true
+  }
+
+  return {
+    currentNodeId: startNodeId,
+    goalNodeId,
+    isSolved: startNodeId === goalNodeId,
+    reachableEdgeIds,
+    reachableNodeIds,
+    startNodeId,
+    stepCount: 0,
+    totalCost: 0,
+    traversedEdgeIds,
+    traversedNodeIds,
   }
 }
 
@@ -69,6 +115,20 @@ export function getSolvedGraphPathCost(searchState: GraphTheorySearchState) {
   return Number.isFinite(solvedCost) ? solvedCost : null
 }
 
+export function getOptimalGraphPlayCost(graph: GraphTheoryData) {
+  const dijkstraState = completeGraphTheorySearch(createGraphTheorySearchState(graph, 'dijkstra'))
+  const solvedCost = getSolvedGraphPathCost(dijkstraState)
+
+  if (solvedCost === null) {
+    return null
+  }
+
+  const startNodeId = findGraphTheoryNodeByKind(graph, 'start') ?? 0
+  const startNodeCost = graph.nodes[startNodeId]?.cost ?? 0
+
+  return solvedCost - startNodeCost
+}
+
 export function useGraphTheoryMode() {
   const [selectedGraphSearchAlgorithms, setSelectedGraphSearchAlgorithms] = useState<
     GraphTheorySearchAlgorithm[]
@@ -83,9 +143,13 @@ export function useGraphTheoryMode() {
   const [graphSearchStates, setGraphSearchStates] = useState<GraphTheorySearchStateMap>(() =>
     createGraphTheorySearchStateMap(createDefaultGraphTheoryData(7)),
   )
+  const [graphPlayState, setGraphPlayState] = useState<GraphTheoryPlayState>(() =>
+    createGraphTheoryPlayState(createDefaultGraphTheoryData(7)),
+  )
 
   useEffect(() => {
     setGraphSearchStates(createGraphTheorySearchStateMap(graphTheoryState))
+    setGraphPlayState(createGraphTheoryPlayState(graphTheoryState))
   }, [graphTheoryState])
 
   function handleGraphTheoryEdgeCostSet(edgeIndex: number, nextCost: number) {
@@ -198,11 +262,62 @@ export function useGraphTheoryMode() {
     })
   }
 
+  function handleGraphPlayReset() {
+    setGraphPlayState(createGraphTheoryPlayState(graphTheoryState))
+  }
+
+  function handleGraphPlayMove(nextNodeId: number) {
+    setGraphPlayState((currentState) => {
+      if (currentState.isSolved || nextNodeId === currentState.currentNodeId) {
+        return currentState
+      }
+
+      const neighbor = getGraphTheoryNeighbors(
+        graphTheoryState,
+        currentState.currentNodeId,
+      ).find(
+        (candidate: { edgeCost: number; edgeIndex: number; nodeCost: number; nodeId: number }) =>
+          candidate.nodeId === nextNodeId,
+      )
+
+      if (!neighbor) {
+        return currentState
+      }
+
+      const traversedNodeIds = [...currentState.traversedNodeIds]
+      const traversedEdgeIds = [...currentState.traversedEdgeIds]
+      const reachableNodeIds = graphTheoryState.nodes.map(() => false)
+      const reachableEdgeIds = graphTheoryState.edges.map(() => false)
+      const totalCost = currentState.totalCost + neighbor.edgeCost + neighbor.nodeCost
+
+      traversedNodeIds[nextNodeId] = true
+      traversedEdgeIds[neighbor.edgeIndex] = true
+
+      for (const nextNeighbor of getGraphTheoryNeighbors(graphTheoryState, nextNodeId)) {
+        reachableNodeIds[nextNeighbor.nodeId] = true
+        reachableEdgeIds[nextNeighbor.edgeIndex] = true
+      }
+
+      return {
+        ...currentState,
+        currentNodeId: nextNodeId,
+        isSolved: nextNodeId === currentState.goalNodeId,
+        reachableEdgeIds,
+        reachableNodeIds,
+        stepCount: currentState.stepCount + 1,
+        totalCost,
+        traversedEdgeIds,
+        traversedNodeIds,
+      }
+    })
+  }
+
   return {
     graphEdgeCostInput,
     graphEdgeCount: graphTheoryState.edges.length,
     graphNodeCostInput,
     graphNodeLabelInput,
+    graphPlayState,
     graphSearchStates,
     graphTheoryData: graphTheoryState,
     graphVertexCount: graphTheoryState.nodes.length,
@@ -210,6 +325,8 @@ export function useGraphTheoryMode() {
     handleApplyAllGraphTheoryEdgeCosts,
     handleApplyAllGraphTheoryNodeCosts,
     handleApplyGraphVertexCount,
+    handleGraphPlayMove,
+    handleGraphPlayReset,
     handleGraphSearchAlgorithmToggle,
     handleGraphSearchComplete,
     handleGraphSearchReset,
@@ -232,4 +349,4 @@ export function useGraphTheoryMode() {
 }
 
 export { GRAPH_THEORY_SEARCH_ALGORITHM_OPTIONS }
-export type { GraphTheorySearchAlgorithm, GraphTheorySearchState }
+export type { GraphTheoryPlayState, GraphTheorySearchAlgorithm, GraphTheorySearchState }

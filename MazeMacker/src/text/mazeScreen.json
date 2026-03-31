@@ -95,6 +95,14 @@
       "dijkstra": "ダイクストラ法"
     }
   },
+  "graphTheoryPlay": {
+    "hint": "隣接する頂点をクリックして進みます。",
+    "ruleSummary": "進めるのは現在頂点から接続され、向きが許す頂点だけです。移動すると 辺コスト + 到着頂点コスト が加算されます。",
+    "current": "current",
+    "steps": "play steps",
+    "cost": "cost",
+    "bestCost": "best"
+  },
   "edit": {
     "hint": "迷路をクリックします。",
     "applyAllCosts": "一括反映",

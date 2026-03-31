@@ -34,6 +34,7 @@ import {
 } from './useMazeMode'
 import {
   GRAPH_THEORY_SEARCH_ALGORITHM_OPTIONS,
+  getOptimalGraphPlayCost,
   getSolvedGraphPathCost,
   useGraphTheoryMode,
 } from './useGraphTheoryMode'
@@ -245,6 +246,7 @@ function MazeScreen() {
     graphEdgeCount,
     graphNodeCostInput,
     graphNodeLabelInput,
+    graphPlayState,
     graphSearchStates,
     graphTheoryData,
     graphVertexCount,
@@ -252,6 +254,8 @@ function MazeScreen() {
     handleApplyAllGraphTheoryEdgeCosts,
     handleApplyAllGraphTheoryNodeCosts,
     handleApplyGraphVertexCount,
+    handleGraphPlayMove,
+    handleGraphPlayReset,
     handleGraphSearchAlgorithmToggle,
     handleGraphSearchComplete,
     handleGraphSearchReset,
@@ -269,6 +273,7 @@ function MazeScreen() {
     setGraphNodeLabelInput,
     setGraphVertexCountInput,
   } = graphTheoryMode
+  const optimalGraphPlayCost = getOptimalGraphPlayCost(graphTheoryData)
   const effectiveDisplayMode: MazeDisplayMode =
     appMode === 'graphTheory' ? 'graph' : displayMode
   const effectiveShowGraphEdgeCosts =
@@ -810,6 +815,14 @@ function MazeScreen() {
       )
     }
 
+    if (appMode === 'graphTheory' && activeTab === 'play') {
+      return (
+        <button className="app__button app__button--secondary" onClick={handleGraphPlayReset}>
+          {mazeScreenText.buttons.reset}
+        </button>
+      )
+    }
+
     if (appMode === 'graphTheory') {
       return null
     }
@@ -1030,6 +1043,33 @@ function MazeScreen() {
                 </section>
               )
             })}
+          </div>
+        ) : appMode === 'graphTheory' && activeTab === 'play' ? (
+          <div className="app__playPanel">
+            <div className="app__playPanelHeader">
+              <p className="app__playHint">{mazeScreenText.graphTheoryPlay.hint}</p>
+              <p className="app__playStatus">
+                {mazeScreenText.graphTheoryPlay.steps}: {graphPlayState.stepCount}
+                {' / '}
+                {mazeScreenText.graphTheoryPlay.cost}: {graphPlayState.totalCost}
+                {optimalGraphPlayCost !== null
+                  ? ` / ${mazeScreenText.graphTheoryPlay.bestCost}: ${optimalGraphPlayCost}`
+                  : ''}
+                {graphPlayState.isSolved ? ` / ${mazeScreenText.play.solved}` : ''}
+              </p>
+            </div>
+            <GraphTheoryCanvas
+              activeEdgeIds={graphPlayState.reachableEdgeIds}
+              activeNodeIds={graphPlayState.reachableNodeIds}
+              currentNodeId={graphPlayState.currentNodeId}
+              graph={graphTheoryData}
+              isNodeLabelVisible={isGraphNodeLabelVisible}
+              nodeTextOrder={graphNodeTextOrder}
+              onNodeActivate={handleGraphPlayMove}
+              pathEdgeIds={graphPlayState.traversedEdgeIds}
+              pathNodeIds={graphPlayState.traversedNodeIds}
+              showEdgeCosts={effectiveShowGraphEdgeCosts}
+            />
           </div>
         ) : appMode === 'graphTheory' ? (
           <GraphTheoryCanvas
@@ -1403,6 +1443,24 @@ function MazeScreen() {
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          ) : appMode === 'graphTheory' && activeTab === 'play' ? (
+            <div className="app__controlsBody">
+              <p className="app__status">{mazeScreenText.graphTheoryPlay.ruleSummary}</p>
+              <div className="app__graphSummary">
+                <span>
+                  {mazeScreenText.graphTheoryPlay.current}:{' '}
+                  {graphTheoryData.nodes[graphPlayState.currentNodeId]?.label}
+                </span>
+                <span>
+                  {mazeScreenText.graphTheoryPlay.cost}: {graphPlayState.totalCost}
+                </span>
+                {optimalGraphPlayCost !== null ? (
+                  <span>
+                    {mazeScreenText.graphTheoryPlay.bestCost}: {optimalGraphPlayCost}
+                  </span>
+                ) : null}
               </div>
             </div>
           ) : appMode === 'graphTheory' ? (
