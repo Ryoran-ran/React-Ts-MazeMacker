@@ -12,6 +12,7 @@ type GraphTheoryCanvasProps = {
   editCostValue?: number
   editMode?: 'cost' | 'goal' | 'start' | 'wall'
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
+  onNodeCostSet?: (nodeIndex: number, cost: number) => void
   showEdgeCosts?: boolean
 }
 
@@ -21,11 +22,13 @@ function GraphTheoryCanvas({
   editCostValue = 1,
   editMode = 'wall',
   onEdgeCostSet,
+  onNodeCostSet,
   showEdgeCosts = true,
 }: GraphTheoryCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [containerSize, setContainerSize] = useState({ height: 0, width: 0 })
   const [hoverEdgeIndex, setHoverEdgeIndex] = useState<number | null>(null)
+  const [hoverNodeIndex, setHoverNodeIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -94,45 +97,77 @@ function GraphTheoryCanvas({
     return nearestDistance <= Math.max(18, nodeRadius * 0.6) ? nearestIndex : null
   }
 
+  function getNearestNodeIndex(pointerX: number, pointerY: number) {
+    let nearestIndex: number | null = null
+    let nearestDistance = Number.POSITIVE_INFINITY
+
+    for (const [index, node] of graph.nodes.entries()) {
+      const projected = project(node.position)
+      const distance = Math.hypot(pointerX - projected.x, pointerY - projected.y)
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    }
+
+    return nearestDistance <= nodeRadius ? nearestIndex : null
+  }
+
   return (
     <div
       ref={containerRef}
       className={`graph-theory-canvas ${editable ? 'graph-theory-canvas--editable' : ''}`}
       onClick={(event) => {
-        if (!editable || editMode !== 'cost' || !onEdgeCostSet || !containerRef.current) {
+        if (
+          !editable ||
+          editMode !== 'cost' ||
+          !containerRef.current ||
+          (!onEdgeCostSet && !onNodeCostSet)
+        ) {
           return
         }
 
         const rect = containerRef.current.getBoundingClientRect()
         const scaleX = width / rect.width
         const scaleY = height / rect.height
-        const edgeIndex = getNearestEdgeIndex(
-          (event.clientX - rect.left) * scaleX,
-          (event.clientY - rect.top) * scaleY,
-        )
+        const pointerX = (event.clientX - rect.left) * scaleX
+        const pointerY = (event.clientY - rect.top) * scaleY
+        const nodeIndex = getNearestNodeIndex(pointerX, pointerY)
+
+        if (nodeIndex !== null) {
+          onNodeCostSet?.(nodeIndex, editCostValue)
+          return
+        }
+
+        const edgeIndex = getNearestEdgeIndex(pointerX, pointerY)
 
         if (edgeIndex === null) {
           return
         }
 
-        onEdgeCostSet(edgeIndex, editCostValue)
+        onEdgeCostSet?.(edgeIndex, editCostValue)
       }}
       onMouseLeave={() => {
         setHoverEdgeIndex(null)
+        setHoverNodeIndex(null)
       }}
       onMouseMove={(event) => {
         if (!editable || editMode !== 'cost' || !containerRef.current) {
           setHoverEdgeIndex(null)
+          setHoverNodeIndex(null)
           return
         }
 
         const rect = containerRef.current.getBoundingClientRect()
         const scaleX = width / rect.width
         const scaleY = height / rect.height
-        setHoverEdgeIndex(getNearestEdgeIndex(
-          (event.clientX - rect.left) * scaleX,
-          (event.clientY - rect.top) * scaleY,
-        ))
+        const pointerX = (event.clientX - rect.left) * scaleX
+        const pointerY = (event.clientY - rect.top) * scaleY
+        const nextNodeIndex = getNearestNodeIndex(pointerX, pointerY)
+
+        setHoverNodeIndex(nextNodeIndex)
+        setHoverEdgeIndex(nextNodeIndex === null ? getNearestEdgeIndex(pointerX, pointerY) : null)
       }}
     >
       <svg
@@ -187,6 +222,7 @@ function GraphTheoryCanvas({
         })}
         {graph.nodes.map((node) => {
           const projected = project(node.position)
+          const isHovered = hoverNodeIndex === node.id
           const fill =
             node.kind === 'start'
               ? '#dbeafe'
@@ -201,8 +237,8 @@ function GraphTheoryCanvas({
                 cy={projected.y}
                 r={nodeRadius}
                 fill={fill}
-                stroke="#e5e7eb"
-                strokeWidth={2}
+                stroke={isHovered ? '#2563eb' : '#e5e7eb'}
+                strokeWidth={isHovered ? 4 : 2}
               />
               <text
                 x={projected.x}
@@ -212,7 +248,7 @@ function GraphTheoryCanvas({
                 fontWeight="500"
                 textAnchor="middle"
               >
-                {node.id + 1}
+                {node.cost}
               </text>
             </g>
           )

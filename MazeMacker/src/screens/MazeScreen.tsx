@@ -39,6 +39,7 @@ import {
   createDefaultGraphTheoryData,
   setAllGraphTheoryEdgeCosts,
   setGraphTheoryEdgeCost,
+  setGraphTheoryNodeCost,
   type GraphTheoryData,
 } from '../data/graphTheory'
 import mazeScreenText from '../text/mazeScreen.json'
@@ -696,6 +697,12 @@ function MazeScreen() {
     )
   }
 
+  function handleGraphTheoryNodeCostSet(nodeIndex: number, nextCost: number) {
+    setGraphTheoryState((currentGraph) =>
+      setGraphTheoryNodeCost(currentGraph, nodeIndex, nextCost),
+    )
+  }
+
   function handleApplyAllEdgeCosts() {
     const nextCost = normalizeEdgeCost(editCostInput, 1)
 
@@ -969,6 +976,7 @@ function MazeScreen() {
               editCostValue={normalizeEdgeCost(editCostInput, 1)}
               editMode="cost"
               onEdgeCostSet={handleGraphTheoryEdgeCostSet}
+              onNodeCostSet={handleGraphTheoryNodeCostSet}
               showEdgeCosts={effectiveShowGraphEdgeCosts}
             />
           </div>

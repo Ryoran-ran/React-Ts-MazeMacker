@@ -6,6 +6,7 @@ type CellPosition = {
 }
 
 export type GraphTheoryNode = {
+  cost: number
   id: number
   kind?: 'goal' | 'start'
   position: CellPosition
@@ -85,6 +86,7 @@ export function buildGraphTheoryData(maze: MazeData): GraphTheoryData {
 
       const id = nodes.length
       nodes.push({
+        cost: 1,
         id,
         kind: maze[y][x].kind,
         position,
@@ -151,7 +153,9 @@ export function buildGraphTheoryData(maze: MazeData): GraphTheoryData {
 
 export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
   const safeNodeCount = Math.max(2, Math.min(nodeCount, DEFAULT_GRAPH_POSITIONS.length))
+  const defaultNodeCosts = [6, 4, 3, 5, 2, 1, 7]
   const nodes: GraphTheoryNode[] = Array.from({ length: safeNodeCount }, (_, index) => ({
+    cost: defaultNodeCosts[index] ?? 1,
     id: index,
     position: DEFAULT_GRAPH_POSITIONS[index],
   }))
@@ -185,6 +189,21 @@ export function setGraphTheoryEdgeCost(
   }
 }
 
+export function setGraphTheoryNodeCost(
+  graph: GraphTheoryData,
+  nodeIndex: number,
+  cost: number,
+): GraphTheoryData {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node, index) =>
+      index === nodeIndex
+        ? { ...node, cost: Math.max(0, Math.trunc(cost)) }
+        : node,
+    ),
+  }
+}
+
 export function setAllGraphTheoryEdgeCosts(
   graph: GraphTheoryData,
   cost: number,
@@ -195,6 +214,10 @@ export function setAllGraphTheoryEdgeCosts(
     ...graph,
     edges: graph.edges.map((edge) => ({
       ...edge,
+      cost: normalizedCost,
+    })),
+    nodes: graph.nodes.map((node) => ({
+      ...node,
       cost: normalizedCost,
     })),
   }
