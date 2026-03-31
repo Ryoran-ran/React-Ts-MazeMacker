@@ -43,6 +43,7 @@ import {
   setGraphTheoryEdgeCost,
   setGraphTheoryNodeKind,
   setGraphTheoryNodeCost,
+  setGraphTheoryNodePosition,
   type GraphTheoryData,
 } from '../data/graphTheory'
 import mazeScreenText from '../text/mazeScreen.json'
@@ -57,6 +58,7 @@ const MAX_GRAPH_VERTEX_COUNT = 24
 const MIN_EDGE_COST = 0
 const MAX_EDGE_COST = 99
 type AppMode = 'maze' | 'graphTheory'
+type EditMode = MazeEditMode | 'move'
 type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
@@ -297,7 +299,7 @@ function MazeScreen() {
   const [generationIntervalMs, setGenerationIntervalMs] = useState(DEFAULT_GENERATION_INTERVAL_MS)
   const [searchIntervalMs, setSearchIntervalMs] = useState(DEFAULT_SEARCH_INTERVAL_MS)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
-  const [editMode, setEditMode] = useState<MazeEditMode>('wall')
+  const [editMode, setEditMode] = useState<EditMode>('wall')
   const [displayMode, setDisplayMode] = useState<MazeDisplayMode>('maze')
   const [showGraphEdgeCosts, setShowGraphEdgeCosts] = useState(false)
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
@@ -696,7 +698,7 @@ function MazeScreen() {
   }
 
   function handleCellSelect(position: { x: number; y: number }) {
-    if (editMode === 'wall' || editMode === 'cost') {
+    if (editMode === 'wall' || editMode === 'cost' || editMode === 'move') {
       return
     }
 
@@ -744,6 +746,15 @@ function MazeScreen() {
   ) {
     setGraphTheoryState((currentGraph) =>
       addGraphTheoryEdge(currentGraph, fromNodeIndex, toNodeIndex, cost),
+    )
+  }
+
+  function handleGraphTheoryNodePositionSet(
+    nodeIndex: number,
+    position: { x: number; y: number },
+  ) {
+    setGraphTheoryState((currentGraph) =>
+      setGraphTheoryNodePosition(currentGraph, nodeIndex, position),
     )
   }
 
@@ -1035,6 +1046,7 @@ function MazeScreen() {
               onEdgeCostSet={handleGraphTheoryEdgeCostSet}
               onNodeKindSet={handleGraphTheoryNodeKindSet}
               onNodeCostSet={handleGraphTheoryNodeCostSet}
+              onNodePositionSet={handleGraphTheoryNodePositionSet}
               showEdgeCosts={effectiveShowGraphEdgeCosts}
             />
           </div>
@@ -1131,7 +1143,7 @@ function MazeScreen() {
             cellSize={24}
             editable={activeTab === 'edit'}
             editCostValue={normalizeEdgeCost(editCostInput, 1)}
-            editMode={editMode}
+            editMode={editMode === 'move' ? 'wall' : editMode}
             onCellSelect={handleCellSelect}
             onEdgeCostSet={handleEdgeCostSet}
             onWallToggle={handleWallToggle}
@@ -1206,6 +1218,13 @@ function MazeScreen() {
                   {mazeScreenText.graphTheory.edgeMode}
                 </button>
                 <button
+                  className={`app__tab ${editMode === 'move' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('move')}
+                >
+                  {mazeScreenText.graphTheory.moveMode}
+                </button>
+                <button
                   className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
                   type="button"
                   onClick={() => setEditMode('cost')}
@@ -1243,6 +1262,9 @@ function MazeScreen() {
                   </div>
                   <p className="app__status">{mazeScreenText.graphTheory.edgeConnectHint}</p>
                 </div>
+              ) : null}
+              {editMode === 'move' ? (
+                <p className="app__status">{mazeScreenText.graphTheory.moveHint}</p>
               ) : null}
               {editMode === 'cost' ? (
                 <div className="app__graphBulkActions">

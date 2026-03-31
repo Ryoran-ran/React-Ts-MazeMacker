@@ -264,6 +264,27 @@ export function setAllGraphTheoryNodeCosts(
   }
 }
 
+export function setGraphTheoryNodePosition(
+  graph: GraphTheoryData,
+  nodeIndex: number,
+  position: CellPosition,
+): GraphTheoryData {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node, index) =>
+      index === nodeIndex
+        ? {
+            ...node,
+            position: {
+              x: Math.max(0, Math.min(80, position.x)),
+              y: Math.max(0, Math.min(50, position.y)),
+            },
+          }
+        : node,
+    ),
+  }
+}
+
 export function addGraphTheoryEdge(
   graph: GraphTheoryData,
   fromNodeIndex: number,

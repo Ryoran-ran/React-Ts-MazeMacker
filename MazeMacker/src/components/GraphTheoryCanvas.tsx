@@ -11,11 +11,12 @@ type GraphTheoryCanvasProps = {
   editable?: boolean
   editEdgeCostValue?: number
   editNodeCostValue?: number
-  editMode?: 'cost' | 'goal' | 'start' | 'wall'
+  editMode?: 'cost' | 'goal' | 'move' | 'start' | 'wall'
   onEdgeAdd?: (fromNodeIndex: number, toNodeIndex: number, cost: number) => void
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
+  onNodePositionSet?: (nodeIndex: number, position: CellPosition) => void
   showEdgeCosts?: boolean
 }
 
@@ -29,6 +30,7 @@ function GraphTheoryCanvas({
   onEdgeCostSet,
   onNodeKindSet,
   onNodeCostSet,
+  onNodePositionSet,
   showEdgeCosts = true,
 }: GraphTheoryCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -36,6 +38,7 @@ function GraphTheoryCanvas({
   const [hoverEdgeIndex, setHoverEdgeIndex] = useState<number | null>(null)
   const [hoverNodeIndex, setHoverNodeIndex] = useState<number | null>(null)
   const [pendingEdgeStartNodeIndex, setPendingEdgeStartNodeIndex] = useState<number | null>(null)
+  const [draggingNodeIndex, setDraggingNodeIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -73,6 +76,16 @@ function GraphTheoryCanvas({
     return {
       x: padding + (position.x / maxX) * usableWidth,
       y: padding + (position.y / maxY) * usableHeight,
+    }
+  }
+
+  function unproject(pointerX: number, pointerY: number) {
+    const usableWidth = Math.max(1, width - padding * 2)
+    const usableHeight = Math.max(1, height - padding * 2)
+
+    return {
+      x: Math.max(0, Math.min(maxX, ((pointerX - padding) / usableWidth) * maxX)),
+      y: Math.max(0, Math.min(maxY, ((pointerY - padding) / usableHeight) * maxY)),
     }
   }
 
@@ -151,6 +164,10 @@ function GraphTheoryCanvas({
           return
         }
 
+        if (editMode === 'move') {
+          return
+        }
+
         if (nodeIndex !== null && editMode === 'wall') {
           if (pendingEdgeStartNodeIndex === null) {
             setPendingEdgeStartNodeIndex(nodeIndex)
@@ -185,6 +202,29 @@ function GraphTheoryCanvas({
       onMouseLeave={() => {
         setHoverEdgeIndex(null)
         setHoverNodeIndex(null)
+        setDraggingNodeIndex(null)
+      }}
+      onMouseDown={(event) => {
+        if (!editable || editMode !== 'move' || !containerRef.current) {
+          return
+        }
+
+        const rect = containerRef.current.getBoundingClientRect()
+        const scaleX = width / rect.width
+        const scaleY = height / rect.height
+        const pointerX = (event.clientX - rect.left) * scaleX
+        const pointerY = (event.clientY - rect.top) * scaleY
+        const nodeIndex = getNearestNodeIndex(pointerX, pointerY)
+
+        if (nodeIndex === null) {
+          return
+        }
+
+        setDraggingNodeIndex(nodeIndex)
+        setHoverNodeIndex(nodeIndex)
+      }}
+      onMouseUp={() => {
+        setDraggingNodeIndex(null)
       }}
       onMouseMove={(event) => {
         if (
@@ -192,6 +232,7 @@ function GraphTheoryCanvas({
           (editMode !== 'cost' &&
             editMode !== 'start' &&
             editMode !== 'goal' &&
+            editMode !== 'move' &&
             editMode !== 'wall') ||
           !containerRef.current
         ) {
@@ -205,6 +246,14 @@ function GraphTheoryCanvas({
         const scaleY = height / rect.height
         const pointerX = (event.clientX - rect.left) * scaleX
         const pointerY = (event.clientY - rect.top) * scaleY
+
+        if (editMode === 'move' && draggingNodeIndex !== null) {
+          onNodePositionSet?.(draggingNodeIndex, unproject(pointerX, pointerY))
+          setHoverNodeIndex(draggingNodeIndex)
+          setHoverEdgeIndex(null)
+          return
+        }
+
         const nextNodeIndex = getNearestNodeIndex(pointerX, pointerY)
 
         setHoverNodeIndex(nextNodeIndex)
@@ -274,6 +323,8 @@ function GraphTheoryCanvas({
               ? 'rgba(37, 99, 235, 0.16)'
               : editMode === 'goal'
                 ? 'rgba(220, 38, 38, 0.16)'
+                : editMode === 'move'
+                  ? 'rgba(37, 99, 235, 0.16)'
                 : editMode === 'wall'
                   ? 'rgba(37, 99, 235, 0.16)'
                   : 'rgba(37, 99, 235, 0.10)'
