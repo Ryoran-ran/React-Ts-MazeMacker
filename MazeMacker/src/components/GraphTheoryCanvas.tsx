@@ -182,6 +182,7 @@ function GraphTheoryCanvas({
     from: CellPosition,
     to: CellPosition,
     reverseDirection = false,
+    ratio = 0.58,
   ) {
     const start = reverseDirection ? to : from
     const end = reverseDirection ? from : to
@@ -195,9 +196,8 @@ function GraphTheoryCanvas({
 
     const ux = dx / length
     const uy = dy / length
-    const centerRatio = 0.58
-    const tipX = start.x + dx * centerRatio
-    const tipY = start.y + dy * centerRatio
+    const tipX = start.x + dx * ratio
+    const tipY = start.y + dy * ratio
     const baseX = tipX - ux * 12
     const baseY = tipY - uy * 12
     const perpX = -uy
@@ -581,23 +581,32 @@ function GraphTheoryCanvas({
           const from = project(graph.nodes[edge.from].position)
           const to = project(graph.nodes[edge.to].position)
           const isHovered = hoverEdgeIndex === edgeIndex
-          const arrow = getArrowPoints(from, to, edge.direction === 'backward')
           const isActive = Boolean(activeEdgeIds?.[edgeIndex])
           const isPath = Boolean(pathEdgeIds?.[edgeIndex])
+          const arrows = [
+            getArrowPoints(from, to, edge.direction === 'backward', 0.24),
+            getArrowPoints(from, to, edge.direction === 'backward', 0.76),
+          ].filter(Boolean)
 
-          if (!arrow) {
+          if (arrows.length === 0) {
             return null
           }
 
           return (
-            <polygon
-              key={`arrow-${edge.from}-${edge.to}-${edgeIndex}`}
-              points={`${arrow.tipX},${arrow.tipY} ${arrow.leftX},${arrow.leftY} ${arrow.rightX},${arrow.rightY}`}
-              fill={isPath ? '#16a34a' : isActive ? '#a16207' : isHovered ? '#0f172a' : '#475569'}
-              stroke="#ffffff"
-              strokeWidth={3}
-              strokeLinejoin="round"
-            />
+            <g key={`arrow-${edge.from}-${edge.to}-${edgeIndex}`}>
+              {arrows.map((arrow, arrowIndex) => (
+                <polygon
+                  key={arrowIndex}
+                  points={`${arrow!.tipX},${arrow!.tipY} ${arrow!.leftX},${arrow!.leftY} ${arrow!.rightX},${arrow!.rightY}`}
+                  fill={
+                    isPath ? '#16a34a' : isActive ? '#a16207' : isHovered ? '#0f172a' : '#475569'
+                  }
+                  stroke="#ffffff"
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                />
+              ))}
+            </g>
           )
         })}
       </svg>
