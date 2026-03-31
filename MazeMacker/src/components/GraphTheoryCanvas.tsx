@@ -11,9 +11,10 @@ type GraphTheoryCanvasProps = {
   editable?: boolean
   editEdgeCostValue?: number
   editNodeCostValue?: number
-  editMode?: 'cost' | 'goal' | 'move' | 'start' | 'wall'
+  editMode?: 'cost' | 'direction' | 'goal' | 'move' | 'start' | 'wall'
   onEdgeAdd?: (fromNodeIndex: number, toNodeIndex: number, cost: number) => void
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
+  onEdgeDirectionCycle?: (edgeIndex: number) => void
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
   onNodePositionSet?: (nodeIndex: number, position: CellPosition) => void
@@ -28,6 +29,7 @@ function GraphTheoryCanvas({
   editMode = 'wall',
   onEdgeAdd,
   onEdgeCostSet,
+  onEdgeDirectionCycle,
   onNodeKindSet,
   onNodeCostSet,
   onNodePositionSet,
@@ -138,6 +140,41 @@ function GraphTheoryCanvas({
     return nearestDistance <= nodeRadius ? nearestIndex : null
   }
 
+  function getArrowPoints(
+    from: CellPosition,
+    to: CellPosition,
+    reverseDirection = false,
+  ) {
+    const start = reverseDirection ? to : from
+    const end = reverseDirection ? from : to
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const length = Math.hypot(dx, dy)
+
+    if (length === 0) {
+      return null
+    }
+
+    const ux = dx / length
+    const uy = dy / length
+    const centerRatio = 0.58
+    const tipX = start.x + dx * centerRatio
+    const tipY = start.y + dy * centerRatio
+    const baseX = tipX - ux * 12
+    const baseY = tipY - uy * 12
+    const perpX = -uy
+    const perpY = ux
+
+    return {
+      tipX,
+      tipY,
+      leftX: baseX + perpX * 5,
+      leftY: baseY + perpY * 5,
+      rightX: baseX - perpX * 5,
+      rightY: baseY - perpY * 5,
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -147,6 +184,7 @@ function GraphTheoryCanvas({
           !editable ||
           !containerRef.current ||
           (editMode === 'cost' && !onEdgeCostSet && !onNodeCostSet) ||
+          (editMode === 'direction' && !onEdgeDirectionCycle) ||
           ((editMode === 'start' || editMode === 'goal') && !onNodeKindSet)
         ) {
           return
@@ -157,7 +195,15 @@ function GraphTheoryCanvas({
         const scaleY = height / rect.height
         const pointerX = (event.clientX - rect.left) * scaleX
         const pointerY = (event.clientY - rect.top) * scaleY
+        const edgeIndex = getNearestEdgeIndex(pointerX, pointerY)
         const nodeIndex = getNearestNodeIndex(pointerX, pointerY)
+
+        if (editMode === 'direction') {
+          if (edgeIndex !== null) {
+            onEdgeDirectionCycle?.(edgeIndex)
+          }
+          return
+        }
 
         if (nodeIndex !== null && (editMode === 'start' || editMode === 'goal')) {
           onNodeKindSet?.(nodeIndex, editMode)
@@ -190,8 +236,6 @@ function GraphTheoryCanvas({
         if (editMode !== 'cost') {
           return
         }
-
-        const edgeIndex = getNearestEdgeIndex(pointerX, pointerY)
 
         if (edgeIndex === null) {
           return
@@ -230,6 +274,7 @@ function GraphTheoryCanvas({
         if (
           !editable ||
           (editMode !== 'cost' &&
+            editMode !== 'direction' &&
             editMode !== 'start' &&
             editMode !== 'goal' &&
             editMode !== 'move' &&
@@ -255,11 +300,18 @@ function GraphTheoryCanvas({
         }
 
         const nextNodeIndex = getNearestNodeIndex(pointerX, pointerY)
+        const nextEdgeIndex = getNearestEdgeIndex(pointerX, pointerY)
+
+        if (editMode === 'direction') {
+          setHoverNodeIndex(null)
+          setHoverEdgeIndex(nextEdgeIndex)
+          return
+        }
 
         setHoverNodeIndex(nextNodeIndex)
         setHoverEdgeIndex(
           editMode === 'cost' && nextNodeIndex === null
-            ? getNearestEdgeIndex(pointerX, pointerY)
+            ? nextEdgeIndex
             : null,
         )
       }}
@@ -285,8 +337,8 @@ function GraphTheoryCanvas({
                 y1={from.y}
                 x2={to.x}
                 y2={to.y}
-                stroke={isHovered ? '#2563eb' : '#94a3b8'}
-                strokeWidth={isHovered ? edgeStroke * 1.8 : edgeStroke}
+                stroke={isHovered ? 'rgba(37, 99, 235, 0.45)' : '#94a3b8'}
+                strokeWidth={isHovered ? edgeStroke * 1.55 : edgeStroke}
                 strokeLinecap="round"
               />
               {showEdgeCosts ? (
@@ -392,6 +444,31 @@ function GraphTheoryCanvas({
                 </g>
               ) : null}
             </g>
+          )
+        })}
+        {graph.edges.map((edge, edgeIndex) => {
+          if (edge.direction === 'undirected') {
+            return null
+          }
+
+          const from = project(graph.nodes[edge.from].position)
+          const to = project(graph.nodes[edge.to].position)
+          const isHovered = hoverEdgeIndex === edgeIndex
+          const arrow = getArrowPoints(from, to, edge.direction === 'backward')
+
+          if (!arrow) {
+            return null
+          }
+
+          return (
+            <polygon
+              key={`arrow-${edge.from}-${edge.to}-${edgeIndex}`}
+              points={`${arrow.tipX},${arrow.tipY} ${arrow.leftX},${arrow.leftY} ${arrow.rightX},${arrow.rightY}`}
+              fill={isHovered ? '#1d4ed8' : '#475569'}
+              stroke="#ffffff"
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+            />
           )
         })}
       </svg>

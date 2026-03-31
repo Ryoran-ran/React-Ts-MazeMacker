@@ -14,6 +14,7 @@ export type GraphTheoryNode = {
 
 export type GraphTheoryEdge = {
   cost: number
+  direction: 'backward' | 'forward' | 'undirected'
   from: number
   to: number
 }
@@ -129,6 +130,7 @@ export function buildGraphTheoryData(maze: MazeData): GraphTheoryData {
           if (node.id < targetNodeId) {
             edges.push({
               cost,
+              direction: 'undirected',
               from: node.id,
               to: targetNodeId,
             })
@@ -174,6 +176,7 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
   for (let index = 0; index < safeNodeCount - 1; index += 1) {
     edges.push({
       cost: ((index + 1) % 5) + 1,
+      direction: 'undirected',
       from: index,
       to: index + 1,
     })
@@ -182,6 +185,7 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
   for (let index = 0; index < safeNodeCount - 2; index += 2) {
     edges.push({
       cost: ((index + 3) % 5) + 1,
+      direction: 'undirected',
       from: index,
       to: index + 2,
     })
@@ -202,6 +206,32 @@ export function setGraphTheoryEdgeCost(
         ? { ...edge, cost: Math.max(0, Math.trunc(cost)) }
         : edge,
     ),
+  }
+}
+
+export function cycleGraphTheoryEdgeDirection(
+  graph: GraphTheoryData,
+  edgeIndex: number,
+): GraphTheoryData {
+  return {
+    ...graph,
+    edges: graph.edges.map((edge, index) => {
+      if (index !== edgeIndex) {
+        return edge
+      }
+
+      const nextDirection =
+        edge.direction === 'undirected'
+          ? 'forward'
+          : edge.direction === 'forward'
+            ? 'backward'
+            : 'undirected'
+
+      return {
+        ...edge,
+        direction: nextDirection,
+      }
+    }),
   }
 }
 
@@ -318,6 +348,7 @@ export function addGraphTheoryEdge(
       ...graph.edges,
       {
         cost: Math.max(0, Math.trunc(cost)),
+        direction: 'undirected',
         from,
         to,
       },

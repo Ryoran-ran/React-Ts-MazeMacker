@@ -37,6 +37,7 @@ import {
 import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
 import {
   addGraphTheoryEdge,
+  cycleGraphTheoryEdgeDirection,
   createDefaultGraphTheoryData,
   setAllGraphTheoryEdgeCosts,
   setAllGraphTheoryNodeCosts,
@@ -58,7 +59,7 @@ const MAX_GRAPH_VERTEX_COUNT = 24
 const MIN_EDGE_COST = 0
 const MAX_EDGE_COST = 99
 type AppMode = 'maze' | 'graphTheory'
-type EditMode = MazeEditMode | 'move'
+type EditMode = MazeEditMode | 'direction' | 'move'
 type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
@@ -758,6 +759,12 @@ function MazeScreen() {
     )
   }
 
+  function handleGraphTheoryEdgeDirectionCycle(edgeIndex: number) {
+    setGraphTheoryState((currentGraph) =>
+      cycleGraphTheoryEdgeDirection(currentGraph, edgeIndex),
+    )
+  }
+
   function handleApplyAllEdgeCosts() {
     const nextCost = normalizeEdgeCost(editCostInput, 1)
 
@@ -1044,6 +1051,7 @@ function MazeScreen() {
               editMode={editMode}
               onEdgeAdd={handleGraphTheoryEdgeAdd}
               onEdgeCostSet={handleGraphTheoryEdgeCostSet}
+              onEdgeDirectionCycle={handleGraphTheoryEdgeDirectionCycle}
               onNodeKindSet={handleGraphTheoryNodeKindSet}
               onNodeCostSet={handleGraphTheoryNodeCostSet}
               onNodePositionSet={handleGraphTheoryNodePositionSet}
@@ -1143,7 +1151,7 @@ function MazeScreen() {
             cellSize={24}
             editable={activeTab === 'edit'}
             editCostValue={normalizeEdgeCost(editCostInput, 1)}
-            editMode={editMode === 'move' ? 'wall' : editMode}
+            editMode={editMode === 'move' || editMode === 'direction' ? 'wall' : editMode}
             onCellSelect={handleCellSelect}
             onEdgeCostSet={handleEdgeCostSet}
             onWallToggle={handleWallToggle}
@@ -1225,6 +1233,13 @@ function MazeScreen() {
                   {mazeScreenText.graphTheory.moveMode}
                 </button>
                 <button
+                  className={`app__tab ${editMode === 'direction' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('direction')}
+                >
+                  {mazeScreenText.graphTheory.directionMode}
+                </button>
+                <button
                   className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
                   type="button"
                   onClick={() => setEditMode('cost')}
@@ -1265,6 +1280,9 @@ function MazeScreen() {
               ) : null}
               {editMode === 'move' ? (
                 <p className="app__status">{mazeScreenText.graphTheory.moveHint}</p>
+              ) : null}
+              {editMode === 'direction' ? (
+                <p className="app__status">{mazeScreenText.graphTheory.directionHint}</p>
               ) : null}
               {editMode === 'cost' ? (
                 <div className="app__graphBulkActions">
