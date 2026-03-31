@@ -17,7 +17,7 @@ type GraphTheoryCanvasProps = {
   graph: GraphTheoryData
   editable?: boolean
   editEdgeCostValue?: number
-  isNodeLabelVisible?: boolean
+  nodeTextVisibility?: 'both' | 'costOnly' | 'labelOnly'
   nodeTextOrder?: 'costFirst' | 'labelFirst'
   editNodeLabelValue?: string
   editNodeCostValue?: number
@@ -44,7 +44,7 @@ function GraphTheoryCanvas({
   graph,
   editable = false,
   editEdgeCostValue = 1,
-  isNodeLabelVisible = true,
+  nodeTextVisibility = 'both',
   nodeTextOrder = 'labelFirst',
   editNodeLabelValue = '',
   editNodeCostValue = 1,
@@ -480,6 +480,7 @@ function GraphTheoryCanvas({
                         : '#ffffff'
           const primaryText = nodeTextOrder === 'costFirst' ? String(node.cost) : node.label
           const secondaryText = nodeTextOrder === 'costFirst' ? node.label : String(node.cost)
+          const singleText = nodeTextVisibility === 'labelOnly' ? node.label : String(node.cost)
 
           return (
             <g key={node.id}>
@@ -515,7 +516,7 @@ function GraphTheoryCanvas({
                 }
                 strokeWidth={isCurrent || isHovered || isPendingEdgeStart || isActive ? 4 : 2}
               />
-              {isNodeLabelVisible ? (
+              {nodeTextVisibility === 'both' ? (
                 <>
                   <text
                     x={projected.x}
@@ -547,7 +548,7 @@ function GraphTheoryCanvas({
                   fontWeight="500"
                   textAnchor="middle"
                 >
-                  {node.cost}
+                  {singleText}
                 </text>
               )}
               {node.kind ? (

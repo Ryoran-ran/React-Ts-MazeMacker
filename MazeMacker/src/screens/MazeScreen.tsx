@@ -71,6 +71,7 @@ type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayClickMoveMode = 'disabled' | 'enabled'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
+type GraphNodeTextVisibility = 'both' | 'costOnly' | 'labelOnly'
 type GraphNodeTextOrder = 'costFirst' | 'labelFirst'
 type RevealedWall = {
   direction: MazeWallDirection
@@ -365,7 +366,8 @@ function MazeScreen() {
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<EditMode>('wall')
   const [displayMode, setDisplayMode] = useState<MazeDisplayMode>('maze')
-  const [showGraphEdgeCosts, setShowGraphEdgeCosts] = useState(false)
+  const [showMazeEdgeCosts, setShowMazeEdgeCosts] = useState(false)
+  const [showGraphTheoryEdgeCosts, setShowGraphTheoryEdgeCosts] = useState(true)
   const [showEditGoalPath, setShowEditGoalPath] = useState(false)
   const [showGraphTheoryEditGoalPath, setShowGraphTheoryEditGoalPath] = useState(false)
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
@@ -374,7 +376,8 @@ function MazeScreen() {
   const [playWallVisibilityMode, setPlayWallVisibilityMode] =
     useState<PlayWallVisibilityMode>('all')
   const [playClickMoveMode, setPlayClickMoveMode] = useState<PlayClickMoveMode>('disabled')
-  const [isGraphNodeLabelVisible, setIsGraphNodeLabelVisible] = useState(true)
+  const [graphNodeTextVisibility, setGraphNodeTextVisibility] =
+    useState<GraphNodeTextVisibility>('both')
   const [graphNodeTextOrder, setGraphNodeTextOrder] = useState<GraphNodeTextOrder>('labelFirst')
   const [mazeTransferText, setMazeTransferText] = useState('')
   const [graphTheoryTransferText, setGraphTheoryTransferText] = useState('')
@@ -437,9 +440,11 @@ function MazeScreen() {
   const effectiveDisplayMode: MazeDisplayMode =
     appMode === 'graphTheory' ? 'graph' : displayMode
   const effectiveShowGraphEdgeCosts =
-    appMode === 'graphTheory' || (activeTab === 'edit' && editMode === 'cost')
+    activeTab === 'edit' && editMode === 'cost'
       ? true
-      : showGraphEdgeCosts
+      : appMode === 'graphTheory'
+        ? showGraphTheoryEdgeCosts
+        : showMazeEdgeCosts
   const editPreviewPath = useMemo(() => {
     if (appMode !== 'maze' || activeTab !== 'edit' || !showEditGoalPath) {
       return undefined
@@ -1305,7 +1310,7 @@ function MazeScreen() {
               graph={graphTheoryData}
               editable
               editEdgeCostValue={normalizeEdgeCost(graphEdgeCostInput, 1)}
-              isNodeLabelVisible={isGraphNodeLabelVisible}
+              nodeTextVisibility={graphNodeTextVisibility}
               nodeTextOrder={graphNodeTextOrder}
               editNodeLabelValue={graphNodeLabelInput}
               editNodeCostValue={normalizeEdgeCost(graphNodeCostInput, 1)}
@@ -1347,7 +1352,7 @@ function MazeScreen() {
                         : searchState.currentNodeId
                     }
                     graph={graphTheoryData}
-                    isNodeLabelVisible={isGraphNodeLabelVisible}
+                    nodeTextVisibility={graphNodeTextVisibility}
                     nodeTextOrder={graphNodeTextOrder}
                     openNodeIds={searchState.openNodeIds}
                     pathEdgeIds={searchState.pathEdgeIds}
@@ -1374,11 +1379,11 @@ function MazeScreen() {
               </p>
             </div>
             <GraphTheoryCanvas
-              activeEdgeIds={graphPlayState.reachableEdgeIds}
-              activeNodeIds={graphPlayState.reachableNodeIds}
+              activeEdgeIds={graphPlayState.isSolved ? undefined : graphPlayState.reachableEdgeIds}
+              activeNodeIds={graphPlayState.isSolved ? undefined : graphPlayState.reachableNodeIds}
               currentNodeId={graphPlayState.currentNodeId}
               graph={graphTheoryData}
-              isNodeLabelVisible={isGraphNodeLabelVisible}
+              nodeTextVisibility={graphNodeTextVisibility}
               nodeTextOrder={graphNodeTextOrder}
               onNodeActivate={handleGraphPlayMove}
               pathEdgeIds={graphPlayState.traversedEdgeIds}
@@ -1389,7 +1394,7 @@ function MazeScreen() {
         ) : appMode === 'graphTheory' ? (
           <GraphTheoryCanvas
             graph={graphTheoryData}
-            isNodeLabelVisible={isGraphNodeLabelVisible}
+            nodeTextVisibility={graphNodeTextVisibility}
             nodeTextOrder={graphNodeTextOrder}
             showEdgeCosts={effectiveShowGraphEdgeCosts}
           />
@@ -1858,16 +1863,16 @@ function MazeScreen() {
                 <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
                 <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">
                   <button
-                    className={`app__tab ${showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${showGraphTheoryEdgeCosts ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setShowGraphEdgeCosts(true)}
+                    onClick={() => setShowGraphTheoryEdgeCosts(true)}
                   >
                     {mazeScreenText.graphEdgeCosts.visible}
                   </button>
                   <button
-                    className={`app__tab ${!showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${!showGraphTheoryEdgeCosts ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setShowGraphEdgeCosts(false)}
+                    onClick={() => setShowGraphTheoryEdgeCosts(false)}
                   >
                     {mazeScreenText.graphEdgeCosts.hidden}
                   </button>
@@ -1875,18 +1880,25 @@ function MazeScreen() {
               </div>
               <div className="app__field">
                 <span className="app__fieldLabel">{mazeScreenText.graphTheory.nodeLabelVisibilityLabel}</span>
-                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph node label visibility">
+                <div className="app__tabs app__tabs--ternary" role="tablist" aria-label="Graph node label visibility">
                   <button
-                    className={`app__tab ${isGraphNodeLabelVisible ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${graphNodeTextVisibility === 'both' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setIsGraphNodeLabelVisible(true)}
+                    onClick={() => setGraphNodeTextVisibility('both')}
                   >
                     {mazeScreenText.graphTheory.nodeLabelVisibilityVisible}
                   </button>
                   <button
-                    className={`app__tab ${!isGraphNodeLabelVisible ? 'app__tab--active' : ''}`}
+                    className={`app__tab ${graphNodeTextVisibility === 'labelOnly' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setIsGraphNodeLabelVisible(false)}
+                    onClick={() => setGraphNodeTextVisibility('labelOnly')}
+                  >
+                    {mazeScreenText.graphTheory.nodeLabelVisibilityLabelOnly}
+                  </button>
+                  <button
+                    className={`app__tab ${graphNodeTextVisibility === 'costOnly' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setGraphNodeTextVisibility('costOnly')}
                   >
                     {mazeScreenText.graphTheory.nodeLabelVisibilityHidden}
                   </button>
@@ -2090,16 +2102,16 @@ function MazeScreen() {
                   <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
                   <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">
                     <button
-                      className={`app__tab ${showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                      className={`app__tab ${showMazeEdgeCosts ? 'app__tab--active' : ''}`}
                       type="button"
-                      onClick={() => setShowGraphEdgeCosts(true)}
+                      onClick={() => setShowMazeEdgeCosts(true)}
                     >
                       {mazeScreenText.graphEdgeCosts.visible}
                     </button>
                     <button
-                      className={`app__tab ${!showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                      className={`app__tab ${!showMazeEdgeCosts ? 'app__tab--active' : ''}`}
                       type="button"
-                      onClick={() => setShowGraphEdgeCosts(false)}
+                      onClick={() => setShowMazeEdgeCosts(false)}
                     >
                       {mazeScreenText.graphEdgeCosts.hidden}
                     </button>
