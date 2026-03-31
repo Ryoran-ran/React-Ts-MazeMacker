@@ -1028,16 +1028,22 @@ function MazeScreen() {
       </section>
 
       <aside className="app__sidebar">
-        <div className="app__tabs" role="tablist" aria-label="Sidebar tabs">
-          <button
-            className={`app__tab ${activeTab === 'controls' ? 'app__tab--active' : ''}`}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'controls'}
-            onClick={() => handleTabChange('controls')}
-          >
-            {mazeScreenText.tabs.controls}
-          </button>
+        <div
+          className={`app__tabs ${appMode === 'graphTheory' ? 'app__tabs--graphTheory' : ''}`}
+          role="tablist"
+          aria-label="Sidebar tabs"
+        >
+          {appMode === 'maze' ? (
+            <button
+              className={`app__tab ${activeTab === 'controls' ? 'app__tab--active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'controls'}
+              onClick={() => handleTabChange('controls')}
+            >
+              {mazeScreenText.tabs.controls}
+            </button>
+          ) : null}
           <button
             className={`app__tab ${activeTab === 'edit' ? 'app__tab--active' : ''}`}
             type="button"

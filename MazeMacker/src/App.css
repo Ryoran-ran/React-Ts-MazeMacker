@@ -113,6 +113,10 @@
   align-self: start;
 }
 
+.app__tabs--graphTheory {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .app__tab {
   border: 0;
   border-radius: 8px;
