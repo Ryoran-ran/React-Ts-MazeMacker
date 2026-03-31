@@ -163,7 +163,12 @@
 
 .app__tabs--graphEdit {
   margin-top: -2px;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app__tabs--graphEdit .app__tab {
+  padding-inline: 6px;
+  font-size: 0.75rem;
 }
 
 .app__tabs--playWalls .app__tab {
