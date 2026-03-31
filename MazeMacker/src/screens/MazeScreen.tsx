@@ -1,5 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import MazeCanvas, {
+  type MazeDisplayMode,
   type MazeEditMode,
   type MazeData,
   type MazeWallDirection,
@@ -15,6 +16,8 @@ import {
   completeMazeGeneration,
   createMazeGenerationState,
   setMazeCellKind,
+  setAllMazeEdgeCosts,
+  setMazeEdgeCost,
   stepMazeGeneration,
   toggleMazeWall,
 } from '../data/mazeGenerator'
@@ -38,7 +41,9 @@ const DEFAULT_SEARCH_INTERVAL_MS = 40
 const MAX_PLAYBACK_INTERVAL_MS = 180
 const MIN_PLAYBACK_INTERVAL_MS = 20
 const MIN_DIMENSION = 2
-type SidebarTab = 'controls' | 'edit' | 'play' | 'search'
+const MIN_EDGE_COST = 0
+const MAX_EDGE_COST = 99
+type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
@@ -73,6 +78,16 @@ function normalizeDimension(value: string, fallback: number) {
   }
 
   return Math.max(MIN_DIMENSION, parsed)
+}
+
+function normalizeEdgeCost(value: string, fallback: number) {
+  const parsed = Number.parseInt(value, 10)
+
+  if (Number.isNaN(parsed)) {
+    return fallback
+  }
+
+  return Math.min(MAX_EDGE_COST, Math.max(MIN_EDGE_COST, parsed))
 }
 
 function getPlaybackLabel(intervalMs: number) {
@@ -184,6 +199,54 @@ function getAdjacentPosition(
   return position.x > 0 ? { x: position.x - 1, y: position.y } : null
 }
 
+function getDirectionBetween(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): MazeWallDirection | null {
+  if (to.x === from.x && to.y === from.y - 1) {
+    return 'top'
+  }
+  if (to.x === from.x + 1 && to.y === from.y) {
+    return 'right'
+  }
+  if (to.x === from.x && to.y === from.y + 1) {
+    return 'bottom'
+  }
+  if (to.x === from.x - 1 && to.y === from.y) {
+    return 'left'
+  }
+
+  return null
+}
+
+function getSolvedPathCost(searchState: MazeSearchState) {
+  if (!searchState.isSolved) {
+    return null
+  }
+
+  let totalCost = 0
+  let current = searchState.goal
+
+  while (!(current.x === searchState.start.x && current.y === searchState.start.y)) {
+    const parent = searchState.parents[current.y][current.x]
+
+    if (!parent) {
+      return null
+    }
+
+    const direction = getDirectionBetween(parent, current)
+
+    if (!direction) {
+      return null
+    }
+
+    totalCost += searchState.maze[parent.y][parent.x].costs[direction]
+    current = parent
+  }
+
+  return totalCost
+}
+
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<MazeAlgorithm>('digging')
@@ -191,16 +254,16 @@ function MazeScreen() {
     MazeSearchAlgorithm[]
   >(['astar'])
   const [generationState, setGenerationState] = useState(() =>
-    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED),
+    createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null),
   )
   const [searchStates, setSearchStates] = useState<SearchStateMap>(() =>
     createSearchStateMap(
-      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED).maze,
+      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null).maze,
     ),
   )
   const [playerState, setPlayerState] = useState<PlayerState>(() =>
     createPlayerState(
-      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', DEFAULT_MAZE_SEED).maze,
+      createMazeGenerationState(DEFAULT_MAZE_DIMENSIONS, 'digging', null).maze,
     ),
   )
   const [playerBumpState, setPlayerBumpState] = useState<PlayerBumpState | null>(null)
@@ -210,6 +273,8 @@ function MazeScreen() {
   const [searchIntervalMs, setSearchIntervalMs] = useState(DEFAULT_SEARCH_INTERVAL_MS)
   const [activeTab, setActiveTab] = useState<SidebarTab>('controls')
   const [editMode, setEditMode] = useState<MazeEditMode>('wall')
+  const [displayMode, setDisplayMode] = useState<MazeDisplayMode>('maze')
+  const [showGraphEdgeCosts, setShowGraphEdgeCosts] = useState(false)
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
@@ -217,12 +282,13 @@ function MazeScreen() {
     useState<PlayWallVisibilityMode>('all')
   const [mazeTransferText, setMazeTransferText] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
+  const [editCostInput, setEditCostInput] = useState('1')
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
   })
   const [seedInput, setSeedInput] = useState(String(DEFAULT_MAZE_SEED))
-  const [useSeed, setUseSeed] = useState(true)
+  const [useSeed, setUseSeed] = useState(false)
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
@@ -576,13 +642,31 @@ function MazeScreen() {
   }
 
   function handleCellSelect(position: { x: number; y: number }) {
-    if (editMode === 'wall') {
+    if (editMode === 'wall' || editMode === 'cost') {
       return
     }
 
     const nextKind: MazeCellKind = editMode === 'start' ? 'start' : 'goal'
     setIsPlaying(false)
     setGenerationState((currentState) => setMazeCellKind(currentState, position, nextKind))
+  }
+
+  function handleEdgeCostSet(
+    position: { x: number; y: number },
+    direction: MazeWallDirection,
+    nextCost: number,
+  ) {
+    setIsPlaying(false)
+    setGenerationState((currentState) =>
+      setMazeEdgeCost(currentState, position, direction, nextCost),
+    )
+  }
+
+  function handleApplyAllEdgeCosts() {
+    const nextCost = normalizeEdgeCost(editCostInput, 1)
+
+    setIsPlaying(false)
+    setGenerationState((currentState) => setAllMazeEdgeCosts(currentState, nextCost))
   }
 
   function handleExportMaze() {
@@ -809,6 +893,7 @@ function MazeScreen() {
           <div className="app__searchPanels">
             {selectedSearchAlgorithms.map((algorithm) => {
               const searchState = searchStates[algorithm]
+              const solvedPathCost = getSolvedPathCost(searchState)
 
               return (
                 <section key={algorithm} className="app__searchPanel">
@@ -816,12 +901,17 @@ function MazeScreen() {
                     <h2>{mazeScreenText.search.options[algorithm]}</h2>
                     <p>
                       {mazeScreenText.search.status.steps}: {searchState.stepCount}
+                      {solvedPathCost !== null
+                        ? ` / ${mazeScreenText.search.status.cost}: ${solvedPathCost}`
+                        : ''}
                       {isSearchPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
                       {searchState.isSolved ? ` / ${mazeScreenText.search.status.solved}` : ''}
                       {searchState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
                     </p>
                   </header>
                   <MazeCanvas
+                    displayMode={displayMode}
+                    showGraphEdgeCosts={showGraphEdgeCosts}
                     maze={generationState.maze}
                     openSet={searchState.openSet}
                     path={searchState.path}
@@ -851,6 +941,8 @@ function MazeScreen() {
               bumpState={playerBumpState}
               celebrateGoal={playerState.isSolved}
               currentFacingDirection={playerState.facingDirection}
+              displayMode={displayMode}
+              showGraphEdgeCosts={showGraphEdgeCosts}
               maze={generationState.maze}
               playHandGuideMode={playHandGuideMode}
               playWallVisibilityMode={playWallVisibilityMode}
@@ -864,6 +956,8 @@ function MazeScreen() {
           </div>
         ) : (
           <MazeCanvas
+            displayMode={displayMode}
+            showGraphEdgeCosts={activeTab === 'edit' && editMode === 'cost' ? true : showGraphEdgeCosts}
             maze={generationState.maze}
             visited={
               generationState.algorithm === 'wallFilling'
@@ -882,8 +976,10 @@ function MazeScreen() {
             }
             cellSize={24}
             editable={activeTab === 'edit'}
+            editCostValue={normalizeEdgeCost(editCostInput, 1)}
             editMode={editMode}
             onCellSelect={handleCellSelect}
+            onEdgeCostSet={handleEdgeCostSet}
             onWallToggle={handleWallToggle}
           />
         )}
@@ -908,6 +1004,15 @@ function MazeScreen() {
             onClick={() => handleTabChange('edit')}
           >
             {mazeScreenText.tabs.edit}
+          </button>
+          <button
+            className={`app__tab ${activeTab === 'display' ? 'app__tab--active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'display'}
+            onClick={() => handleTabChange('display')}
+          >
+            {mazeScreenText.tabs.display}
           </button>
           <button
             className={`app__tab ${activeTab === 'search' ? 'app__tab--active' : ''}`}
@@ -938,25 +1043,63 @@ function MazeScreen() {
                   <button
                     className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('wall')}
+                    onClick={() => {
+                      setEditMode('wall')
+                    }}
                   >
                     {mazeScreenText.edit.modes.wall}
                   </button>
                   <button
+                    className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => {
+                      setEditMode('cost')
+                    }}
+                  >
+                    {mazeScreenText.edit.modes.cost}
+                  </button>
+                  <button
                     className={`app__tab ${editMode === 'start' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('start')}
+                    onClick={() => {
+                      setEditMode('start')
+                    }}
                   >
                     {mazeScreenText.edit.modes.start}
                   </button>
                   <button
                     className={`app__tab ${editMode === 'goal' ? 'app__tab--active' : ''}`}
                     type="button"
-                    onClick={() => setEditMode('goal')}
+                    onClick={() => {
+                      setEditMode('goal')
+                    }}
                   >
                     {mazeScreenText.edit.modes.goal}
                   </button>
                 </div>
+                {editMode === 'cost' ? (
+                  <div className="app__field">
+                    <span className="app__fieldLabel">{mazeScreenText.edit.costLabel}</span>
+                    <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                      <input
+                        className="app__input"
+                        type="number"
+                        min={MIN_EDGE_COST}
+                        max={MAX_EDGE_COST}
+                        step={1}
+                        value={editCostInput}
+                        onChange={(event) => setEditCostInput(event.target.value)}
+                      />
+                      <button
+                        className="app__button app__button--compact app__button--secondary"
+                        type="button"
+                        onClick={handleApplyAllEdgeCosts}
+                      >
+                        {mazeScreenText.edit.applyAllCosts}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="app__sizeFields">
                   <label className="app__field">
                     <span className="app__fieldLabel">{mazeScreenText.size.columns}</span>
@@ -1022,6 +1165,49 @@ function MazeScreen() {
                       setToast(null)
                     }}
                   />
+                </div>
+              </div>
+            </>
+          ) : activeTab === 'display' ? (
+            <>
+              <div className="app__controlsBody">
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.displayMode.label}</span>
+                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Display mode">
+                    <button
+                      className={`app__tab ${displayMode === 'maze' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setDisplayMode('maze')}
+                    >
+                      {mazeScreenText.displayMode.maze}
+                    </button>
+                    <button
+                      className={`app__tab ${displayMode === 'graph' ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setDisplayMode('graph')}
+                    >
+                      {mazeScreenText.displayMode.graph}
+                    </button>
+                  </div>
+                </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
+                  <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">
+                    <button
+                      className={`app__tab ${showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowGraphEdgeCosts(true)}
+                    >
+                      {mazeScreenText.graphEdgeCosts.visible}
+                    </button>
+                    <button
+                      className={`app__tab ${!showGraphEdgeCosts ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowGraphEdgeCosts(false)}
+                    >
+                      {mazeScreenText.graphEdgeCosts.hidden}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

@@ -118,6 +118,14 @@ export function getCellNeighbor(
   return position.x > 0 ? { x: position.x - 1, y: position.y } : null
 }
 
+export function getMovementCost(
+  maze: MazeData,
+  position: CellPosition,
+  direction: MazeWallDirection,
+) {
+  return maze[position.y][position.x].costs[direction]
+}
+
 export function buildPathGrid(
   maze: MazeData,
   parents: Array<Array<CellPosition | null>>,

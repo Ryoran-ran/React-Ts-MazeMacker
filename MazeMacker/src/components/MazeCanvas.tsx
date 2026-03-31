@@ -8,14 +8,23 @@ export type MazeCellWalls = {
   left: boolean
 }
 
+export type MazeCellCosts = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 export type MazeCell = {
   kind?: 'goal' | 'start'
+  costs: MazeCellCosts
   walls: MazeCellWalls
 }
 
 export type MazeData = MazeCell[][]
 export type MazeWallDirection = 'top' | 'right' | 'bottom' | 'left'
-export type MazeEditMode = 'goal' | 'start' | 'wall'
+export type MazeEditMode = 'cost' | 'goal' | 'start' | 'wall'
+export type MazeDisplayMode = 'graph' | 'maze'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 
@@ -43,6 +52,8 @@ type BumpState = {
 type MazeCanvasProps = {
   maze: MazeData
   cellSize?: number
+  displayMode?: MazeDisplayMode
+  showGraphEdgeCosts?: boolean
   bumpState?: BumpState | null
   celebrateGoal?: boolean
   currentFacingDirection?: MazeWallDirection | null
@@ -59,13 +70,21 @@ type MazeCanvasProps = {
   visited?: boolean[][]
   editable?: boolean
   editMode?: MazeEditMode
+  editCostValue?: number
   onCellSelect?: (position: CellPosition) => void
+  onEdgeCostSet?: (
+    position: CellPosition,
+    direction: MazeWallDirection,
+    cost: number,
+  ) => void
   onWallToggle?: (position: CellPosition, direction: MazeWallDirection) => void
 }
 
 function MazeCanvas({
   maze,
   cellSize = 24,
+  displayMode = 'maze',
+  showGraphEdgeCosts = false,
   bumpState = null,
   celebrateGoal = false,
   currentFacingDirection = null,
@@ -82,7 +101,9 @@ function MazeCanvas({
   visited,
   editable = false,
   editMode = 'wall',
+  editCostValue = 1,
   onCellSelect,
+  onEdgeCostSet,
   onWallToggle,
 }: MazeCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -263,6 +284,36 @@ function MazeCanvas({
         }
       }
 
+      function hasNeighborForDirection(
+        x: number,
+        y: number,
+        direction: MazeWallDirection,
+      ) {
+        if (direction === 'top') {
+          return y > 0
+        }
+        if (direction === 'right') {
+          return x < columnCount - 1
+        }
+        if (direction === 'bottom') {
+          return y < rowCount - 1
+        }
+
+        return x > 0
+      }
+
+      function canEditCost(
+        x: number,
+        y: number,
+        direction: MazeWallDirection | null,
+      ) {
+        if (direction === null) {
+          return false
+        }
+
+        return hasNeighborForDirection(x, y, direction) && !maze[y][x].walls[direction]
+      }
+
       p.mouseMoved = () => {
         if (editable) {
           hoverTargetRef.current = resolveEditTarget(p.mouseX, p.mouseY)
@@ -297,6 +348,31 @@ function MazeCanvas({
           return
         }
 
+        if (editMode === 'cost') {
+          if (!onEdgeCostSet) {
+            return
+          }
+
+          const localX = clickX - cellX * responsiveCellSize
+          const localY = clickY - cellY * responsiveCellSize
+          const distances: Array<{ direction: MazeWallDirection; distance: number }> = [
+            { direction: 'top', distance: localY },
+            { direction: 'right', distance: responsiveCellSize - localX },
+            { direction: 'bottom', distance: responsiveCellSize - localY },
+            { direction: 'left', distance: localX },
+          ]
+
+          distances.sort((left, right) => left.distance - right.distance)
+          const direction = distances[0].direction
+
+          if (!canEditCost(cellX, cellY, direction)) {
+            return
+          }
+
+          onEdgeCostSet({ x: cellX, y: cellY }, direction, editCostValue)
+          return
+        }
+
         if (!onWallToggle) {
           return
         }
@@ -317,6 +393,7 @@ function MazeCanvas({
       p.draw = () => {
         p.background(backgroundColor)
         const hoveredEditTarget = hoverTargetRef.current
+        const isGraphMode = displayMode === 'graph'
 
         const revealedWallSet = new Set(
           revealedWalls.map((wall) => `${wall.x}:${wall.y}:${wall.direction}`),
@@ -410,38 +487,73 @@ function MazeCanvas({
               hoveredEditTarget.x === x &&
               hoveredEditTarget.y === y
             ) {
-              p.noStroke()
-              if (editMode === 'start') {
-                p.fill(37, 99, 235, 52)
-              } else if (editMode === 'goal') {
-                p.fill(220, 38, 38, 52)
-              } else {
-                p.fill(15, 23, 42, 28)
+              if (editMode === 'start' || editMode === 'goal') {
+                p.noStroke()
+                if (editMode === 'start') {
+                  p.fill(37, 99, 235, 52)
+                } else {
+                  p.fill(220, 38, 38, 52)
+                }
+                p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
               }
-              p.rect(drawX, drawY, responsiveCellSize, responsiveCellSize)
 
               if (hoveredEditTarget.direction) {
-                p.stroke(15, 23, 42, 90)
-                p.strokeWeight(Math.max(4, responsiveCellSize * 0.14))
+                if (editMode === 'cost' && !canEditCost(x, y, hoveredEditTarget.direction)) {
+                  // Skip invalid cost previews on walls or borders.
+                } else if (displayMode === 'maze') {
+                  p.stroke(15, 23, 42, 90)
+                  p.strokeWeight(Math.max(4, responsiveCellSize * 0.14))
 
-                if (hoveredEditTarget.direction === 'top') {
-                  p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
-                } else if (hoveredEditTarget.direction === 'right') {
-                  p.line(
-                    drawX + responsiveCellSize,
-                    drawY,
-                    drawX + responsiveCellSize,
-                    drawY + responsiveCellSize,
-                  )
-                } else if (hoveredEditTarget.direction === 'bottom') {
-                  p.line(
-                    drawX,
-                    drawY + responsiveCellSize,
-                    drawX + responsiveCellSize,
-                    drawY + responsiveCellSize,
-                  )
+                  if (editMode === 'wall') {
+                    p.stroke(15, 23, 42, 120)
+                  } else if (editMode === 'cost') {
+                    p.stroke(37, 99, 235, 140)
+                  }
+
+                  if (hoveredEditTarget.direction === 'top') {
+                    p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
+                  } else if (hoveredEditTarget.direction === 'right') {
+                    p.line(
+                      drawX + responsiveCellSize,
+                      drawY,
+                      drawX + responsiveCellSize,
+                      drawY + responsiveCellSize,
+                    )
+                  } else if (hoveredEditTarget.direction === 'bottom') {
+                    p.line(
+                      drawX,
+                      drawY + responsiveCellSize,
+                      drawX + responsiveCellSize,
+                      drawY + responsiveCellSize,
+                    )
+                  } else {
+                    p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+                  }
                 } else {
-                  p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+                  const centerX = drawX + responsiveCellSize / 2
+                  const centerY = drawY + responsiveCellSize / 2
+                  let targetX = centerX
+                  let targetY = centerY
+
+                  if (hoveredEditTarget.direction === 'top') {
+                    targetY -= responsiveCellSize
+                  } else if (hoveredEditTarget.direction === 'right') {
+                    targetX += responsiveCellSize
+                  } else if (hoveredEditTarget.direction === 'bottom') {
+                    targetY += responsiveCellSize
+                  } else {
+                    targetX -= responsiveCellSize
+                  }
+
+                  p.stroke(editMode === 'cost' ? 37 : 15, editMode === 'cost' ? 99 : 23, editMode === 'cost' ? 235 : 42, editMode === 'cost' ? 130 : 110)
+                  p.strokeWeight(Math.max(5, responsiveCellSize * 0.18))
+                  p.strokeCap(p.ROUND)
+                  p.line(centerX, centerY, targetX, targetY)
+
+                  p.noStroke()
+                  p.fill(editMode === 'cost' ? 37 : 15, editMode === 'cost' ? 99 : 23, editMode === 'cost' ? 235 : 42, 72)
+                  p.circle(centerX, centerY, Math.max(10, responsiveCellSize * 0.36))
+                  p.circle(targetX, targetY, Math.max(10, responsiveCellSize * 0.36))
                 }
               }
             }
@@ -552,31 +664,33 @@ function MazeCanvas({
               )
             }
 
-            p.stroke(wallColor)
-            p.strokeWeight(2)
-            p.noFill()
+            if (!isGraphMode) {
+              p.stroke(wallColor)
+              p.strokeWeight(2)
+              p.noFill()
 
-            if (cell.walls.top && shouldDrawWall(x, y, 'top')) {
-              p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
-            }
-            if (cell.walls.right && shouldDrawWall(x, y, 'right')) {
-              p.line(
-                drawX + responsiveCellSize,
-                drawY,
-                drawX + responsiveCellSize,
-                drawY + responsiveCellSize,
-              )
-            }
-            if (cell.walls.bottom && shouldDrawWall(x, y, 'bottom')) {
-              p.line(
-                drawX,
-                drawY + responsiveCellSize,
-                drawX + responsiveCellSize,
-                drawY + responsiveCellSize,
-              )
-            }
-            if (cell.walls.left && shouldDrawWall(x, y, 'left')) {
-              p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+              if (cell.walls.top && shouldDrawWall(x, y, 'top')) {
+                p.line(drawX, drawY, drawX + responsiveCellSize, drawY)
+              }
+              if (cell.walls.right && shouldDrawWall(x, y, 'right')) {
+                p.line(
+                  drawX + responsiveCellSize,
+                  drawY,
+                  drawX + responsiveCellSize,
+                  drawY + responsiveCellSize,
+                )
+              }
+              if (cell.walls.bottom && shouldDrawWall(x, y, 'bottom')) {
+                p.line(
+                  drawX,
+                  drawY + responsiveCellSize,
+                  drawX + responsiveCellSize,
+                  drawY + responsiveCellSize,
+                )
+              }
+              if (cell.walls.left && shouldDrawWall(x, y, 'left')) {
+                p.line(drawX, drawY, drawX, drawY + responsiveCellSize)
+              }
             }
           }
         }
@@ -614,15 +728,104 @@ function MazeCanvas({
           }
         }
 
-        p.stroke(wallColor)
-        p.strokeWeight(outerBorderWeight)
-        p.noFill()
-        p.rect(
-          outerBorderWeight / 2,
-          outerBorderWeight / 2,
-          canvasWidth - outerBorderWeight,
-          canvasHeight - outerBorderWeight,
-        )
+        if (showGraphEdgeCosts) {
+          p.textAlign(p.CENTER, p.CENTER)
+          p.textStyle(p.BOLD)
+          p.textSize(Math.max(8, responsiveCellSize * 0.24))
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              const cell = maze[y][x]
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+
+              if (x < columnCount - 1 && !cell.walls.right) {
+                const labelX = centerX + responsiveCellSize / 2
+                const labelY = centerY
+                const label = String(cell.costs.right)
+                const labelWidth = Math.max(
+                  responsiveCellSize * 0.28,
+                  p.textWidth(label) + responsiveCellSize * 0.14,
+                )
+                p.noStroke()
+                p.fill(255, 255, 255, isGraphMode ? 230 : 245)
+                p.rect(
+                  labelX - labelWidth / 2,
+                  labelY - responsiveCellSize * 0.14,
+                  labelWidth,
+                  responsiveCellSize * 0.28,
+                  responsiveCellSize * 0.08,
+                )
+                p.fill('#334155')
+                p.text(label, labelX, labelY + responsiveCellSize * 0.015)
+              }
+
+              if (y < rowCount - 1 && !cell.walls.bottom) {
+                const labelX = centerX
+                const labelY = centerY + responsiveCellSize / 2
+                const label = String(cell.costs.bottom)
+                const labelWidth = Math.max(
+                  responsiveCellSize * 0.28,
+                  p.textWidth(label) + responsiveCellSize * 0.14,
+                )
+                p.noStroke()
+                p.fill(255, 255, 255, isGraphMode ? 230 : 245)
+                p.rect(
+                  labelX - labelWidth / 2,
+                  labelY - responsiveCellSize * 0.14,
+                  labelWidth,
+                  responsiveCellSize * 0.28,
+                  responsiveCellSize * 0.08,
+                )
+                p.fill('#334155')
+                p.text(label, labelX, labelY + responsiveCellSize * 0.015)
+              }
+            }
+          }
+        }
+
+        if (isGraphMode) {
+          p.stroke('#94a3b8')
+          p.strokeWeight(Math.max(2, responsiveCellSize * 0.1))
+          p.strokeCap(p.ROUND)
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              const cell = maze[y][x]
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+
+              if (x < columnCount - 1 && !cell.walls.right) {
+                p.line(centerX, centerY, centerX + responsiveCellSize, centerY)
+              }
+
+              if (y < rowCount - 1 && !cell.walls.bottom) {
+                p.line(centerX, centerY, centerX, centerY + responsiveCellSize)
+              }
+            }
+          }
+
+          p.noStroke()
+          p.fill('#334155')
+
+          for (let y = 0; y < rowCount; y += 1) {
+            for (let x = 0; x < columnCount; x += 1) {
+              const centerX = x * responsiveCellSize + responsiveCellSize / 2
+              const centerY = y * responsiveCellSize + responsiveCellSize / 2
+              p.circle(centerX, centerY, Math.max(5, responsiveCellSize * 0.22))
+            }
+          }
+        } else {
+          p.stroke(wallColor)
+          p.strokeWeight(outerBorderWeight)
+          p.noFill()
+          p.rect(
+            outerBorderWeight / 2,
+            outerBorderWeight / 2,
+            canvasWidth - outerBorderWeight,
+            canvasHeight - outerBorderWeight,
+          )
+        }
       }
     }
 
@@ -644,10 +847,13 @@ function MazeCanvas({
     currentCellSpan.rows,
     currentFacingDirection,
     celebrateGoal,
+    displayMode,
     editMode,
+    editCostValue,
     editable,
     maze,
     onCellSelect,
+    onEdgeCostSet,
     onWallToggle,
     openSet,
     path,
@@ -655,6 +861,7 @@ function MazeCanvas({
     playHandGuideMode,
     revealedWalls,
     rowCount,
+    showGraphEdgeCosts,
     showVisitedWalls,
     visited,
     wallColor,

@@ -2,6 +2,7 @@ import {
   buildPathGrid,
   calculateHeuristic,
   getCellNeighbor,
+  getMovementCost,
   shuffleDirections,
   type MazeSearchState,
   type SearchNode,
@@ -88,7 +89,7 @@ export function stepAStarSearch(state: MazeSearchState): MazeSearchState {
       continue
     }
 
-    const nextCost = currentNode.cost + 1
+    const nextCost = currentNode.cost + getMovementCost(state.maze, current, direction)
 
     if (nextCost >= costs[next.y][next.x]) {
       continue

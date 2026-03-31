@@ -73,6 +73,20 @@ export function parseMazeTransferPayload(
       }
 
       if (
+        nextCell.costs !== undefined &&
+        (
+          !nextCell.costs ||
+          typeof nextCell.costs !== 'object' ||
+          typeof nextCell.costs.top !== 'number' ||
+          typeof nextCell.costs.right !== 'number' ||
+          typeof nextCell.costs.bottom !== 'number' ||
+          typeof nextCell.costs.left !== 'number'
+        )
+      ) {
+        throw new Error(errors.invalidMaze)
+      }
+
+      if (
         nextCell.kind !== undefined &&
         nextCell.kind !== 'start' &&
         nextCell.kind !== 'goal'
@@ -110,6 +124,12 @@ export function parseMazeTransferPayload(
     maze: payload.maze.map((row) =>
       row.map((cell) => ({
         kind: cell.kind,
+        costs: {
+          top: cell.costs?.top ?? 1,
+          right: cell.costs?.right ?? 1,
+          bottom: cell.costs?.bottom ?? 1,
+          left: cell.costs?.left ?? 1,
+        },
         walls: { ...cell.walls },
       })),
     ),

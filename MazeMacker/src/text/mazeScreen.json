@@ -2,6 +2,7 @@
   "title": "Maze Renderer",
   "tabs": {
     "controls": "迷路",
+    "display": "表示",
     "edit": "編集",
     "search": "探索",
     "play": "遊ぶ"
@@ -34,6 +35,7 @@
   "algorithm": {
     "label": "生成方式",
     "options": {
+      "kruskal": "Kruskal法",
       "prim": "Prim法",
       "digging": "穴掘り法",
       "stickFalling": "棒倒し法",
@@ -41,10 +43,23 @@
       "wallExtending": "壁伸ばし法"
     }
   },
+  "displayMode": {
+    "label": "表示モード",
+    "maze": "迷路",
+    "graph": "グラフ"
+  },
+  "graphEdgeCosts": {
+    "label": "辺コスト",
+    "visible": "表示する",
+    "hidden": "隠す"
+  },
   "edit": {
     "hint": "迷路をクリックします。",
+    "applyAllCosts": "一括反映",
+    "costLabel": "設定コスト",
     "modes": {
       "wall": "壁",
+      "cost": "コスト",
       "start": "スタート",
       "goal": "ゴール"
     }
@@ -80,6 +95,7 @@
     },
     "status": {
       "algorithm": "search",
+      "cost": "cost",
       "steps": "steps",
       "solved": "solved"
     }

@@ -3,6 +3,7 @@ import {
   calculateHeuristic,
   createParentGrid,
   getCellNeighbor,
+  getMovementCost,
   shuffleDirections,
   type CellPosition,
   type MazeSearchState,
@@ -88,7 +89,7 @@ function findTravelPath(
         continue
       }
 
-      const nextCost = currentNode.cost + 1
+      const nextCost = currentNode.cost + getMovementCost(state.maze, current, direction)
 
       if (nextCost >= costs[next.y][next.x]) {
         continue
@@ -187,7 +188,7 @@ function expandTarget(state: MazeSearchState, targetNode: SearchNode): MazeSearc
       continue
     }
 
-    const nextCost = targetNode.cost + 1
+    const nextCost = targetNode.cost + getMovementCost(state.maze, current, direction)
 
     if (nextCost >= costs[next.y][next.x]) {
       continue

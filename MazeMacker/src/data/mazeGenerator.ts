@@ -1,3 +1,4 @@
+import { createKruskalState, stepKruskalMazeGeneration } from './mazeGenerator.kruskal'
 import { createPrimState, stepPrimMazeGeneration } from './mazeGenerator.prim'
 import { createDiggingState, stepDiggingMazeGeneration } from './mazeGenerator.digging'
 import {
@@ -41,6 +42,7 @@ export const MAZE_ALGORITHM_OPTIONS: Array<{
   label: string
   value: MazeAlgorithm
 }> = [
+  { label: 'Kruskal法', value: 'kruskal' },
   { label: 'Prim法', value: 'prim' },
   { label: '穴掘り法', value: 'digging' },
   { label: '棒倒し法', value: 'stickFalling' },
@@ -53,6 +55,10 @@ export function createMazeGenerationState(
   algorithm: MazeAlgorithm = 'digging',
   seed: number | null = DEFAULT_MAZE_SEED,
 ): MazeGenerationState {
+  if (algorithm === 'kruskal') {
+    return createKruskalState(dimensions, seed)
+  }
+
   if (algorithm === 'prim') {
     return createPrimState(dimensions, seed)
   }
@@ -75,6 +81,10 @@ export function createMazeGenerationState(
 export function stepMazeGeneration(
   state: MazeGenerationState,
 ): MazeGenerationState {
+  if (state.algorithm === 'kruskal') {
+    return stepKruskalMazeGeneration(state)
+  }
+
   if (state.algorithm === 'prim') {
     return stepPrimMazeGeneration(state)
   }
@@ -162,6 +172,82 @@ export function setMazeCellKind(
   }
 
   maze[position.y][position.x].kind = kind
+
+  return {
+    ...state,
+    currentCell: null,
+    isComplete: true,
+    extensionSegments: [],
+    maze,
+    pendingPillars: [],
+    pendingWalls: [],
+    stack: [],
+    visited,
+    wallGrid: null,
+  }
+}
+
+export function setMazeEdgeCost(
+  state: MazeGenerationState,
+  position: CellPosition,
+  direction: MazeWallDirection,
+  cost: number,
+): MazeGenerationState {
+  const maze = cloneMaze(state.maze)
+  const visited = createVisitedGrid(state.dimensions)
+  const normalizedCost = Math.max(0, Math.trunc(cost))
+  const { x, y } = position
+
+  maze[y][x].costs[direction] = normalizedCost
+
+  if (direction === 'top' && y > 0) {
+    maze[y - 1][x].costs.bottom = normalizedCost
+  }
+  if (direction === 'right' && x < state.dimensions.columns - 1) {
+    maze[y][x + 1].costs.left = normalizedCost
+  }
+  if (direction === 'bottom' && y < state.dimensions.rows - 1) {
+    maze[y + 1][x].costs.top = normalizedCost
+  }
+  if (direction === 'left' && x > 0) {
+    maze[y][x - 1].costs.right = normalizedCost
+  }
+
+  return {
+    ...state,
+    currentCell: null,
+    isComplete: true,
+    extensionSegments: [],
+    maze,
+    pendingPillars: [],
+    pendingWalls: [],
+    stack: [],
+    visited,
+    wallGrid: null,
+  }
+}
+
+export function setAllMazeEdgeCosts(
+  state: MazeGenerationState,
+  cost: number,
+): MazeGenerationState {
+  const maze = cloneMaze(state.maze)
+  const visited = createVisitedGrid(state.dimensions)
+  const normalizedCost = Math.max(0, Math.trunc(cost))
+
+  for (let y = 0; y < state.dimensions.rows; y += 1) {
+    for (let x = 0; x < state.dimensions.columns; x += 1) {
+      if (x < state.dimensions.columns - 1) {
+        maze[y][x].costs.right = normalizedCost
+        maze[y][x + 1].costs.left = normalizedCost
+      }
+
+      if (y < state.dimensions.rows - 1) {
+        maze[y][x].costs.bottom = normalizedCost
+        maze[y + 1][x].costs.top = normalizedCost
+      }
+    }
+  }
 
   return {
     ...state,

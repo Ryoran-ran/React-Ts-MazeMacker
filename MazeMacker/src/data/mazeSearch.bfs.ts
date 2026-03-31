@@ -1,4 +1,33 @@
-import { buildPathGrid, getCellNeighbor, shuffleDirections, type MazeSearchState } from './mazeSearch.shared'
+import {
+  buildPathGrid,
+  getCellNeighbor,
+  getMovementCost,
+  shuffleDirections,
+  type MazeSearchState,
+  type SearchNode,
+} from './mazeSearch.shared'
+
+function takeNextNode(state: MazeSearchState, frontier: SearchNode[]) {
+  while (frontier.length > 0) {
+    let bestIndex = 0
+    let bestCost = frontier[0].cost
+
+    for (let index = 1; index < frontier.length; index += 1) {
+      if (frontier[index].cost < bestCost) {
+        bestIndex = index
+        bestCost = frontier[index].cost
+      }
+    }
+
+    const [candidate] = frontier.splice(bestIndex, 1)
+
+    if (candidate.cost <= state.costs[candidate.position.y][candidate.position.x]) {
+      return candidate
+    }
+  }
+
+  return undefined
+}
 
 export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState {
   const frontier = [...state.frontier]
@@ -6,7 +35,7 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
   const visited = state.visited.map((row) => [...row])
   const parents = state.parents.map((row) => [...row])
   const costs = state.costs.map((row) => [...row])
-  const currentNode = frontier.shift()
+  const currentNode = takeNextNode(state, frontier)
 
   if (!currentNode) {
     return {
@@ -50,14 +79,21 @@ export function stepBreadthFirstSearch(state: MazeSearchState): MazeSearchState 
 
     const next = getCellNeighbor(state.maze, current, direction)
 
-    if (!next || visited[next.y][next.x] || openSet[next.y][next.x]) {
+    if (!next) {
       continue
     }
 
-    openSet[next.y][next.x] = true
+    const nextCost = currentNode.cost + getMovementCost(state.maze, current, direction)
+
+    if (nextCost >= costs[next.y][next.x]) {
+      continue
+    }
+
+    costs[next.y][next.x] = nextCost
     parents[next.y][next.x] = current
+    openSet[next.y][next.x] = true
     frontier.push({
-      cost: currentNode.cost + 1,
+      cost: nextCost,
       parent: current,
       position: next,
     })

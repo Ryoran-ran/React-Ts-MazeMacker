@@ -81,6 +81,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 24px;
+  overflow: hidden;
 }
 
 .app__tabs {
@@ -114,7 +115,12 @@
 
 .app__tabs--edit {
   margin-top: -2px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.app__tabs--edit .app__tab {
+  padding-inline: 6px;
+  font-size: 0.75rem;
 }
 
 .app__tabs--search {
@@ -148,12 +154,15 @@
 
 .app__controls {
   min-height: 0;
+  overflow: hidden;
 }
 
 .app__controlsBody {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
+  padding-bottom: 20px;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -191,6 +200,16 @@
   gap: 8px;
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.app__fieldHeaderActions--spread {
+  justify-content: stretch;
+  white-space: normal;
+}
+
+.app__fieldHeaderActions--spread .app__input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .app__fieldLabel {
