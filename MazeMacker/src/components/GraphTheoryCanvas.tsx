@@ -15,13 +15,17 @@ type GraphTheoryCanvasProps = {
   graph: GraphTheoryData
   editable?: boolean
   editEdgeCostValue?: number
+  isNodeLabelVisible?: boolean
+  nodeTextOrder?: 'costFirst' | 'labelFirst'
+  editNodeLabelValue?: string
   editNodeCostValue?: number
-  editMode?: 'cost' | 'direction' | 'goal' | 'move' | 'start' | 'wall'
+  editMode?: 'cost' | 'direction' | 'goal' | 'move' | 'name' | 'start' | 'wall'
   onEdgeAdd?: (fromNodeIndex: number, toNodeIndex: number, cost: number) => void
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
   onEdgeDirectionCycle?: (edgeIndex: number) => void
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
+  onNodeLabelSet?: (nodeIndex: number, label: string) => void
   onNodePositionSet?: (nodeIndex: number, position: CellPosition) => void
   openNodeIds?: boolean[]
   pathEdgeIds?: boolean[]
@@ -35,6 +39,9 @@ function GraphTheoryCanvas({
   graph,
   editable = false,
   editEdgeCostValue = 1,
+  isNodeLabelVisible = true,
+  nodeTextOrder = 'labelFirst',
+  editNodeLabelValue = '',
   editNodeCostValue = 1,
   editMode = 'wall',
   onEdgeAdd,
@@ -42,6 +49,7 @@ function GraphTheoryCanvas({
   onEdgeDirectionCycle,
   onNodeKindSet,
   onNodeCostSet,
+  onNodeLabelSet,
   onNodePositionSet,
   openNodeIds,
   pathEdgeIds,
@@ -209,7 +217,8 @@ function GraphTheoryCanvas({
           !containerRef.current ||
           (editMode === 'cost' && !onEdgeCostSet && !onNodeCostSet) ||
           (editMode === 'direction' && !onEdgeDirectionCycle) ||
-          ((editMode === 'start' || editMode === 'goal') && !onNodeKindSet)
+          ((editMode === 'start' || editMode === 'goal') && !onNodeKindSet) ||
+          (editMode === 'name' && !onNodeLabelSet)
         ) {
           return
         }
@@ -231,6 +240,11 @@ function GraphTheoryCanvas({
 
         if (nodeIndex !== null && (editMode === 'start' || editMode === 'goal')) {
           onNodeKindSet?.(nodeIndex, editMode)
+          return
+        }
+
+        if (nodeIndex !== null && editMode === 'name') {
+          onNodeLabelSet?.(nodeIndex, editNodeLabelValue)
           return
         }
 
@@ -301,6 +315,7 @@ function GraphTheoryCanvas({
             editMode !== 'direction' &&
             editMode !== 'start' &&
             editMode !== 'goal' &&
+            editMode !== 'name' &&
             editMode !== 'move' &&
             editMode !== 'wall') ||
           !containerRef.current
@@ -415,7 +430,9 @@ function GraphTheoryCanvas({
               ? 'rgba(37, 99, 235, 0.16)'
               : editMode === 'goal'
                 ? 'rgba(220, 38, 38, 0.16)'
-                : editMode === 'move'
+              : editMode === 'move'
+                  ? 'rgba(37, 99, 235, 0.16)'
+                : editMode === 'name'
                   ? 'rgba(37, 99, 235, 0.16)'
                 : editMode === 'wall'
                   ? 'rgba(37, 99, 235, 0.16)'
@@ -431,9 +448,11 @@ function GraphTheoryCanvas({
                     ? '#dbeafe'
                     : node.kind === 'start'
                       ? '#dbeafe'
-                      : node.kind === 'goal'
+                    : node.kind === 'goal'
                         ? '#fee2e2'
                         : '#ffffff'
+          const primaryText = nodeTextOrder === 'costFirst' ? String(node.cost) : node.label
+          const secondaryText = nodeTextOrder === 'costFirst' ? node.label : String(node.cost)
 
           return (
             <g key={node.id}>
@@ -467,16 +486,41 @@ function GraphTheoryCanvas({
                 }
                 strokeWidth={isCurrent || isHovered || isPendingEdgeStart ? 4 : 2}
               />
-              <text
-                x={projected.x}
-                y={projected.y + nodeRadius * 0.28}
-                fill="#020617"
-                fontSize={Math.max(14, nodeRadius * 1.05)}
-                fontWeight="500"
-                textAnchor="middle"
-              >
-                {node.cost}
-              </text>
+              {isNodeLabelVisible ? (
+                <>
+                  <text
+                    x={projected.x}
+                    y={projected.y + nodeRadius * 0.1}
+                    fill="#020617"
+                    fontSize={Math.max(12, nodeRadius * 0.62)}
+                    fontWeight="500"
+                    textAnchor="middle"
+                  >
+                    {primaryText}
+                  </text>
+                  <text
+                    x={projected.x}
+                    y={projected.y + nodeRadius * 0.58}
+                    fill="#475569"
+                    fontSize={Math.max(9, nodeRadius * 0.28)}
+                    fontWeight="700"
+                    textAnchor="middle"
+                  >
+                    {secondaryText}
+                  </text>
+                </>
+              ) : (
+                <text
+                  x={projected.x}
+                  y={projected.y + nodeRadius * 0.28}
+                  fill="#020617"
+                  fontSize={Math.max(14, nodeRadius * 1.05)}
+                  fontWeight="500"
+                  textAnchor="middle"
+                >
+                  {node.cost}
+                </text>
+              )}
               {node.kind ? (
                 <g>
                   <circle

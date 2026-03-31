@@ -49,11 +49,12 @@ const MAX_GRAPH_VERTEX_COUNT = 24
 const MIN_EDGE_COST = 0
 const MAX_EDGE_COST = 99
 type AppMode = 'maze' | 'graphTheory'
-type EditMode = MazeEditMode | 'direction' | 'move'
+type EditMode = MazeEditMode | 'direction' | 'move' | 'name'
 type SidebarTab = 'controls' | 'display' | 'edit' | 'play' | 'search'
 type PlayHandGuideMode = 'hidden' | 'left' | 'right'
 type PlayWallVisibilityMode = 'all' | 'hidden' | 'nearby'
 type PlayWallDiscoveryMode = 'bumpOnly' | 'hidden' | 'visited'
+type GraphNodeTextOrder = 'costFirst' | 'labelFirst'
 type RevealedWall = {
   direction: MazeWallDirection
   x: number
@@ -214,6 +215,8 @@ function MazeScreen() {
     useState<PlayWallDiscoveryMode>('visited')
   const [playWallVisibilityMode, setPlayWallVisibilityMode] =
     useState<PlayWallVisibilityMode>('all')
+  const [isGraphNodeLabelVisible, setIsGraphNodeLabelVisible] = useState(true)
+  const [graphNodeTextOrder, setGraphNodeTextOrder] = useState<GraphNodeTextOrder>('labelFirst')
   const [mazeTransferText, setMazeTransferText] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
   const [editCostInput, setEditCostInput] = useState('1')
@@ -241,6 +244,7 @@ function MazeScreen() {
     graphEdgeCostInput,
     graphEdgeCount,
     graphNodeCostInput,
+    graphNodeLabelInput,
     graphSearchStates,
     graphTheoryData,
     graphVertexCount,
@@ -256,11 +260,13 @@ function MazeScreen() {
     handleGraphTheoryEdgeCostSet,
     handleGraphTheoryEdgeDirectionCycle,
     handleGraphTheoryNodeCostSet,
+    handleGraphTheoryNodeLabelSet,
     handleGraphTheoryNodeKindSet,
     handleGraphTheoryNodePositionSet,
     selectedGraphSearchAlgorithms,
     setGraphEdgeCostInput,
     setGraphNodeCostInput,
+    setGraphNodeLabelInput,
     setGraphVertexCountInput,
   } = graphTheoryMode
   const effectiveDisplayMode: MazeDisplayMode =
@@ -971,6 +977,9 @@ function MazeScreen() {
               graph={graphTheoryData}
               editable
               editEdgeCostValue={normalizeEdgeCost(graphEdgeCostInput, 1)}
+              isNodeLabelVisible={isGraphNodeLabelVisible}
+              nodeTextOrder={graphNodeTextOrder}
+              editNodeLabelValue={graphNodeLabelInput}
               editNodeCostValue={normalizeEdgeCost(graphNodeCostInput, 1)}
               editMode={editMode}
               onEdgeAdd={handleGraphTheoryEdgeAdd}
@@ -978,6 +987,7 @@ function MazeScreen() {
               onEdgeDirectionCycle={handleGraphTheoryEdgeDirectionCycle}
               onNodeKindSet={handleGraphTheoryNodeKindSet}
               onNodeCostSet={handleGraphTheoryNodeCostSet}
+              onNodeLabelSet={handleGraphTheoryNodeLabelSet}
               onNodePositionSet={handleGraphTheoryNodePositionSet}
               showEdgeCosts={effectiveShowGraphEdgeCosts}
             />
@@ -1009,6 +1019,8 @@ function MazeScreen() {
                         : searchState.currentNodeId
                     }
                     graph={graphTheoryData}
+                    isNodeLabelVisible={isGraphNodeLabelVisible}
+                    nodeTextOrder={graphNodeTextOrder}
                     openNodeIds={searchState.openNodeIds}
                     pathEdgeIds={searchState.pathEdgeIds}
                     pathNodeIds={searchState.pathNodeIds}
@@ -1022,6 +1034,8 @@ function MazeScreen() {
         ) : appMode === 'graphTheory' ? (
           <GraphTheoryCanvas
             graph={graphTheoryData}
+            isNodeLabelVisible={isGraphNodeLabelVisible}
+            nodeTextOrder={graphNodeTextOrder}
             showEdgeCosts={effectiveShowGraphEdgeCosts}
           />
         ) : activeTab === 'search' ? (
@@ -1112,7 +1126,11 @@ function MazeScreen() {
             cellSize={24}
             editable={activeTab === 'edit'}
             editCostValue={normalizeEdgeCost(editCostInput, 1)}
-            editMode={editMode === 'move' || editMode === 'direction' ? 'wall' : editMode}
+            editMode={
+              editMode === 'move' || editMode === 'direction' || editMode === 'name'
+                ? 'wall'
+                : editMode
+            }
             onCellSelect={handleCellSelect}
             onEdgeCostSet={handleEdgeCostSet}
             onWallToggle={handleWallToggle}
@@ -1222,6 +1240,13 @@ function MazeScreen() {
                   {mazeScreenText.graphTheory.directionMode}
                 </button>
                 <button
+                  className={`app__tab ${editMode === 'name' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('name')}
+                >
+                  {mazeScreenText.graphTheory.nameMode}
+                </button>
+                <button
                   className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
                   type="button"
                   onClick={() => setEditMode('cost')}
@@ -1265,6 +1290,20 @@ function MazeScreen() {
               ) : null}
               {editMode === 'direction' ? (
                 <p className="app__status">{mazeScreenText.graphTheory.directionHint}</p>
+              ) : null}
+              {editMode === 'name' ? (
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.graphTheory.nodeNameLabel}</span>
+                  <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                    <input
+                      className="app__input"
+                      type="text"
+                      value={graphNodeLabelInput}
+                      onChange={(event) => setGraphNodeLabelInput(event.target.value)}
+                    />
+                  </div>
+                  <p className="app__status">{mazeScreenText.graphTheory.nameHint}</p>
+                </div>
               ) : null}
               {editMode === 'cost' ? (
                 <div className="app__graphBulkActions">
@@ -1405,6 +1444,44 @@ function MazeScreen() {
                     onClick={() => setShowGraphEdgeCosts(false)}
                   >
                     {mazeScreenText.graphEdgeCosts.hidden}
+                  </button>
+                </div>
+              </div>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.graphTheory.nodeLabelVisibilityLabel}</span>
+                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph node label visibility">
+                  <button
+                    className={`app__tab ${isGraphNodeLabelVisible ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setIsGraphNodeLabelVisible(true)}
+                  >
+                    {mazeScreenText.graphTheory.nodeLabelVisibilityVisible}
+                  </button>
+                  <button
+                    className={`app__tab ${!isGraphNodeLabelVisible ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setIsGraphNodeLabelVisible(false)}
+                  >
+                    {mazeScreenText.graphTheory.nodeLabelVisibilityHidden}
+                  </button>
+                </div>
+              </div>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.graphTheory.nodeTextOrderLabel}</span>
+                <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph node text order">
+                  <button
+                    className={`app__tab ${graphNodeTextOrder === 'labelFirst' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setGraphNodeTextOrder('labelFirst')}
+                  >
+                    {mazeScreenText.graphTheory.nodeTextOrderLabelFirst}
+                  </button>
+                  <button
+                    className={`app__tab ${graphNodeTextOrder === 'costFirst' ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setGraphNodeTextOrder('costFirst')}
+                  >
+                    {mazeScreenText.graphTheory.nodeTextOrderCostFirst}
                   </button>
                 </div>
               </div>

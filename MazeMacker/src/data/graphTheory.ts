@@ -9,6 +9,7 @@ export type GraphTheoryNode = {
   cost: number
   id: number
   kind?: 'goal' | 'start'
+  label: string
   position: CellPosition
 }
 
@@ -101,6 +102,7 @@ export function buildGraphTheoryData(maze: MazeData): GraphTheoryData {
         cost: 1,
         id,
         kind: maze[y][x].kind,
+        label: String(id + 1),
         position,
       })
       nodeIdByKey.set(`${x}:${y}`, id)
@@ -171,6 +173,7 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
     cost: (index % 9) + 1,
     id: index,
     kind: index === 0 ? 'start' : index === safeNodeCount - 1 ? 'goal' : undefined,
+    label: String(index + 1),
     position: positions[index],
   }))
 
@@ -248,6 +251,21 @@ export function setGraphTheoryNodeCost(
     nodes: graph.nodes.map((node, index) =>
       index === nodeIndex
         ? { ...node, cost: Math.max(0, Math.trunc(cost)) }
+        : node,
+    ),
+  }
+}
+
+export function setGraphTheoryNodeLabel(
+  graph: GraphTheoryData,
+  nodeIndex: number,
+  label: string,
+): GraphTheoryData {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node, index) =>
+      index === nodeIndex
+        ? { ...node, label: label.trim() || String(node.id + 1) }
         : node,
     ),
   }

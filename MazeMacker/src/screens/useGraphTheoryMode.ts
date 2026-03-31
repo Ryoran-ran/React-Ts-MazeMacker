@@ -16,6 +16,7 @@ import {
   setGraphTheoryEdgeCost,
   setGraphTheoryNodeKind,
   setGraphTheoryNodeCost,
+  setGraphTheoryNodeLabel,
   setGraphTheoryNodePosition,
   type GraphTheoryData,
 } from '../data/graphTheory'
@@ -72,6 +73,7 @@ export function useGraphTheoryMode() {
     GraphTheorySearchAlgorithm[]
   >(['astar'])
   const [graphEdgeCostInput, setGraphEdgeCostInput] = useState('1')
+  const [graphNodeLabelInput, setGraphNodeLabelInput] = useState('1')
   const [graphNodeCostInput, setGraphNodeCostInput] = useState('1')
   const [graphVertexCountInput, setGraphVertexCountInput] = useState('7')
   const [graphTheoryState, setGraphTheoryState] = useState<GraphTheoryData>(() =>
@@ -94,6 +96,12 @@ export function useGraphTheoryMode() {
   function handleGraphTheoryNodeCostSet(nodeIndex: number, nextCost: number) {
     setGraphTheoryState((currentGraph) =>
       setGraphTheoryNodeCost(currentGraph, nodeIndex, nextCost),
+    )
+  }
+
+  function handleGraphTheoryNodeLabelSet(nodeIndex: number, nextLabel: string) {
+    setGraphTheoryState((currentGraph) =>
+      setGraphTheoryNodeLabel(currentGraph, nodeIndex, nextLabel),
     )
   }
 
@@ -193,6 +201,7 @@ export function useGraphTheoryMode() {
     graphEdgeCostInput,
     graphEdgeCount: graphTheoryState.edges.length,
     graphNodeCostInput,
+    graphNodeLabelInput,
     graphSearchStates,
     graphTheoryData: graphTheoryState,
     graphVertexCount: graphTheoryState.nodes.length,
@@ -208,11 +217,13 @@ export function useGraphTheoryMode() {
     handleGraphTheoryEdgeCostSet,
     handleGraphTheoryEdgeDirectionCycle,
     handleGraphTheoryNodeCostSet,
+    handleGraphTheoryNodeLabelSet,
     handleGraphTheoryNodeKindSet,
     handleGraphTheoryNodePositionSet,
     selectedGraphSearchAlgorithms,
     setGraphEdgeCostInput,
     setGraphNodeCostInput,
+    setGraphNodeLabelInput,
     setGraphVertexCountInput,
     setGraphSearchStates,
     setSelectedGraphSearchAlgorithms,
