@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import GraphTheoryCanvas from '../components/GraphTheoryCanvas'
 import MazeCanvas, {
   type MazeDisplayMode,
@@ -43,6 +43,10 @@ import {
   getSolvedGraphPathCost,
   useGraphTheoryMode,
 } from './useGraphTheoryMode'
+import {
+  completeGraphTheorySearch,
+  createGraphTheorySearchState,
+} from '../data/graphTheorySearch'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
@@ -318,6 +322,23 @@ function getDirectionBetweenCells(
   return null
 }
 
+function buildPathGridFromPositions(
+  maze: MazeData,
+  positions: Array<{ x: number; y: number }> | null,
+) {
+  if (!positions || positions.length === 0) {
+    return undefined
+  }
+
+  const path = maze.map((row) => row.map(() => false))
+
+  for (const position of positions) {
+    path[position.y][position.x] = true
+  }
+
+  return path
+}
+
 
 function MazeScreen() {
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -339,6 +360,8 @@ function MazeScreen() {
   const [editMode, setEditMode] = useState<EditMode>('wall')
   const [displayMode, setDisplayMode] = useState<MazeDisplayMode>('maze')
   const [showGraphEdgeCosts, setShowGraphEdgeCosts] = useState(false)
+  const [showEditGoalPath, setShowEditGoalPath] = useState(false)
+  const [showGraphTheoryEditGoalPath, setShowGraphTheoryEditGoalPath] = useState(false)
   const [playHandGuideMode, setPlayHandGuideMode] = useState<PlayHandGuideMode>('hidden')
   const [playWallDiscoveryMode, setPlayWallDiscoveryMode] =
     useState<PlayWallDiscoveryMode>('visited')
@@ -407,6 +430,35 @@ function MazeScreen() {
     appMode === 'graphTheory' ? 'graph' : displayMode
   const effectiveShowGraphEdgeCosts =
     activeTab === 'edit' && editMode === 'cost' ? true : showGraphEdgeCosts
+  const editPreviewPath = useMemo(() => {
+    if (appMode !== 'maze' || activeTab !== 'edit' || !showEditGoalPath) {
+      return undefined
+    }
+
+    const start = findCellByKind(generationState.maze, 'start')
+    const goal = findCellByKind(generationState.maze, 'goal')
+
+    if (!start || !goal) {
+      return undefined
+    }
+
+    return buildPathGridFromPositions(
+      generationState.maze,
+      findMazeAStarPath(generationState.maze, start, goal),
+    )
+  }, [activeTab, appMode, generationState.maze, showEditGoalPath])
+  const graphTheoryEditPreviewPath = useMemo(() => {
+    if (appMode !== 'graphTheory' || activeTab !== 'edit' || !showGraphTheoryEditGoalPath) {
+      return null
+    }
+
+    const searchState = completeGraphTheorySearch(createGraphTheorySearchState(graphTheoryData, 'astar'))
+
+    return {
+      edgeIds: searchState.pathEdgeIds,
+      nodeIds: searchState.pathNodeIds,
+    }
+  }, [activeTab, appMode, graphTheoryData, showGraphTheoryEditGoalPath])
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
@@ -1166,6 +1218,8 @@ function MazeScreen() {
               <p>{mazeScreenText.graphTheory.editHint}</p>
             </header>
             <GraphTheoryCanvas
+              activeEdgeIds={graphTheoryEditPreviewPath?.edgeIds}
+              activeNodeIds={graphTheoryEditPreviewPath?.nodeIds}
               graph={graphTheoryData}
               editable
               editEdgeCostValue={normalizeEdgeCost(graphEdgeCostInput, 1)}
@@ -1328,6 +1382,7 @@ function MazeScreen() {
             displayMode={effectiveDisplayMode}
             showGraphEdgeCosts={effectiveShowGraphEdgeCosts}
             maze={generationState.maze}
+            path={editPreviewPath}
             visited={
               generationState.algorithm === 'wallFilling'
                 ? undefined
@@ -1487,6 +1542,25 @@ function MazeScreen() {
                 >
                   {mazeScreenText.edit.modes.goal}
                 </button>
+              </div>
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.edit.goalPathLabel}</span>
+                <div className="app__tabs app__tabs--binary" role="tablist" aria-label="Graph edit goal path visibility">
+                  <button
+                    className={`app__tab ${showGraphTheoryEditGoalPath ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowGraphTheoryEditGoalPath(true)}
+                  >
+                    {mazeScreenText.edit.goalPathVisible}
+                  </button>
+                  <button
+                    className={`app__tab ${!showGraphTheoryEditGoalPath ? 'app__tab--active' : ''}`}
+                    type="button"
+                    onClick={() => setShowGraphTheoryEditGoalPath(false)}
+                  >
+                    {mazeScreenText.edit.goalPathHidden}
+                  </button>
+                </div>
               </div>
               {editMode === 'wall' ? (
                 <div className="app__field">
@@ -1765,6 +1839,25 @@ function MazeScreen() {
                   >
                     {mazeScreenText.edit.modes.goal}
                   </button>
+                </div>
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.edit.goalPathLabel}</span>
+                  <div className="app__tabs app__tabs--binary" role="tablist" aria-label="Edit goal path visibility">
+                    <button
+                      className={`app__tab ${showEditGoalPath ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowEditGoalPath(true)}
+                    >
+                      {mazeScreenText.edit.goalPathVisible}
+                    </button>
+                    <button
+                      className={`app__tab ${!showEditGoalPath ? 'app__tab--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowEditGoalPath(false)}
+                    >
+                      {mazeScreenText.edit.goalPathHidden}
+                    </button>
+                  </div>
                 </div>
                 {editMode === 'cost' ? (
                   <div className="app__field">

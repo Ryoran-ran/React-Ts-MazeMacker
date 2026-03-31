@@ -107,6 +107,9 @@
     "hint": "迷路をクリックします。",
     "applyAllCosts": "一括反映",
     "costLabel": "設定コスト",
+    "goalPathLabel": "ゴールまでの道",
+    "goalPathVisible": "表示する",
+    "goalPathHidden": "隠す",
     "modes": {
       "wall": "壁",
       "cost": "コスト",

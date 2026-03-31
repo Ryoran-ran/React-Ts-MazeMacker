@@ -156,6 +156,16 @@
   font-size: 0.75rem;
 }
 
+.app__tabs--binary {
+  margin-top: -2px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.app__tabs--binary .app__tab {
+  padding-inline: 6px;
+  font-size: 0.75rem;
+}
+
 .app__tabs--playWalls {
   margin-top: -2px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -163,7 +173,7 @@
 
 .app__tabs--graphEdit {
   margin-top: -2px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .app__tabs--graphEdit .app__tab {
@@ -186,7 +196,10 @@
 }
 
 .app__controls {
+  height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
