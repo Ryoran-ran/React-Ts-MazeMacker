@@ -9,7 +9,8 @@ type CellPosition = {
 type GraphTheoryCanvasProps = {
   graph: GraphTheoryData
   editable?: boolean
-  editCostValue?: number
+  editEdgeCostValue?: number
+  editNodeCostValue?: number
   editMode?: 'cost' | 'goal' | 'start' | 'wall'
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
@@ -20,7 +21,8 @@ type GraphTheoryCanvasProps = {
 function GraphTheoryCanvas({
   graph,
   editable = false,
-  editCostValue = 1,
+  editEdgeCostValue = 1,
+  editNodeCostValue = 1,
   editMode = 'wall',
   onEdgeCostSet,
   onNodeKindSet,
@@ -143,7 +145,7 @@ function GraphTheoryCanvas({
         }
 
         if (nodeIndex !== null && editMode === 'cost') {
-          onNodeCostSet?.(nodeIndex, editCostValue)
+          onNodeCostSet?.(nodeIndex, editNodeCostValue)
           return
         }
 
@@ -157,7 +159,7 @@ function GraphTheoryCanvas({
           return
         }
 
-        onEdgeCostSet?.(edgeIndex, editCostValue)
+        onEdgeCostSet?.(edgeIndex, editEdgeCostValue)
       }}
       onMouseLeave={() => {
         setHoverEdgeIndex(null)

@@ -63,6 +63,10 @@
     "editHint": "グラフ理論の編集機能はこの画面に追加します。",
     "editTitle": "グラフ編集",
     "summaryLabel": "グラフ情報",
+    "edgeCostLabel": "辺コスト",
+    "nodeCostLabel": "頂点コスト",
+    "applyAllEdgeCosts": "辺に一括反映",
+    "applyAllNodeCosts": "頂点に一括反映",
     "vertices": "頂点",
     "edges": "辺"
   },

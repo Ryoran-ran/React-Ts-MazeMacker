@@ -231,6 +231,17 @@ export function setAllGraphTheoryEdgeCosts(
       ...edge,
       cost: normalizedCost,
     })),
+  }
+}
+
+export function setAllGraphTheoryNodeCosts(
+  graph: GraphTheoryData,
+  cost: number,
+): GraphTheoryData {
+  const normalizedCost = Math.max(0, Math.trunc(cost))
+
+  return {
+    ...graph,
     nodes: graph.nodes.map((node) => ({
       ...node,
       cost: normalizedCost,

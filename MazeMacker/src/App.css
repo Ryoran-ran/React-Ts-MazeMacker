@@ -264,6 +264,12 @@
   color: var(--text-h);
 }
 
+.app__graphBulkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .app__input {
   width: 100%;
   box-sizing: border-box;
