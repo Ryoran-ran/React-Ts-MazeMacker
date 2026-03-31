@@ -8,15 +8,24 @@ type CellPosition = {
 
 type GraphTheoryCanvasProps = {
   graph: GraphTheoryData
+  editable?: boolean
+  editCostValue?: number
+  editMode?: 'cost' | 'goal' | 'start' | 'wall'
+  onEdgeCostSet?: (edgeIndex: number, cost: number) => void
   showEdgeCosts?: boolean
 }
 
 function GraphTheoryCanvas({
   graph,
+  editable = false,
+  editCostValue = 1,
+  editMode = 'wall',
+  onEdgeCostSet,
   showEdgeCosts = true,
 }: GraphTheoryCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [containerSize, setContainerSize] = useState({ height: 0, width: 0 })
+  const [hoverEdgeIndex, setHoverEdgeIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -53,8 +62,79 @@ function GraphTheoryCanvas({
     }
   }
 
+  function getNearestEdgeIndex(pointerX: number, pointerY: number) {
+    let nearestIndex: number | null = null
+    let nearestDistance = Number.POSITIVE_INFINITY
+
+    for (const [index, edge] of graph.edges.entries()) {
+      const from = project(graph.nodes[edge.from].position)
+      const to = project(graph.nodes[edge.to].position)
+      const dx = to.x - from.x
+      const dy = to.y - from.y
+      const lengthSquared = dx * dx + dy * dy
+
+      if (lengthSquared === 0) {
+        continue
+      }
+
+      const t = Math.max(
+        0,
+        Math.min(1, ((pointerX - from.x) * dx + (pointerY - from.y) * dy) / lengthSquared),
+      )
+      const projectedX = from.x + dx * t
+      const projectedY = from.y + dy * t
+      const distance = Math.hypot(pointerX - projectedX, pointerY - projectedY)
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    }
+
+    return nearestDistance <= Math.max(18, nodeRadius * 0.6) ? nearestIndex : null
+  }
+
   return (
-    <div ref={containerRef} className="graph-theory-canvas">
+    <div
+      ref={containerRef}
+      className={`graph-theory-canvas ${editable ? 'graph-theory-canvas--editable' : ''}`}
+      onClick={(event) => {
+        if (!editable || editMode !== 'cost' || !onEdgeCostSet || !containerRef.current) {
+          return
+        }
+
+        const rect = containerRef.current.getBoundingClientRect()
+        const scaleX = width / rect.width
+        const scaleY = height / rect.height
+        const edgeIndex = getNearestEdgeIndex(
+          (event.clientX - rect.left) * scaleX,
+          (event.clientY - rect.top) * scaleY,
+        )
+
+        if (edgeIndex === null) {
+          return
+        }
+
+        onEdgeCostSet(edgeIndex, editCostValue)
+      }}
+      onMouseLeave={() => {
+        setHoverEdgeIndex(null)
+      }}
+      onMouseMove={(event) => {
+        if (!editable || editMode !== 'cost' || !containerRef.current) {
+          setHoverEdgeIndex(null)
+          return
+        }
+
+        const rect = containerRef.current.getBoundingClientRect()
+        const scaleX = width / rect.width
+        const scaleY = height / rect.height
+        setHoverEdgeIndex(getNearestEdgeIndex(
+          (event.clientX - rect.left) * scaleX,
+          (event.clientY - rect.top) * scaleY,
+        ))
+      }}
+    >
       <svg
         className="graph-theory-canvas__svg"
         viewBox={`0 0 ${width} ${height}`}
@@ -62,21 +142,22 @@ function GraphTheoryCanvas({
         aria-label="Graph theory view"
       >
         <rect width={width} height={height} fill="#ffffff" rx="20" ry="20" />
-        {graph.edges.map((edge) => {
+        {graph.edges.map((edge, edgeIndex) => {
           const from = project(graph.nodes[edge.from].position)
           const to = project(graph.nodes[edge.to].position)
           const labelX = (from.x + to.x) / 2
           const labelY = (from.y + to.y) / 2
+          const isHovered = hoverEdgeIndex === edgeIndex
 
           return (
-            <g key={`${edge.from}-${edge.to}`}>
+            <g key={`${edge.from}-${edge.to}-${edgeIndex}`}>
               <line
                 x1={from.x}
                 y1={from.y}
                 x2={to.x}
                 y2={to.y}
-                stroke="#94a3b8"
-                strokeWidth={edgeStroke}
+                stroke={isHovered ? '#2563eb' : '#94a3b8'}
+                strokeWidth={isHovered ? edgeStroke * 1.8 : edgeStroke}
                 strokeLinecap="round"
               />
               {showEdgeCosts ? (

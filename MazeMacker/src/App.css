@@ -484,6 +484,10 @@
   border-radius: 20px;
 }
 
+.graph-theory-canvas--editable {
+  cursor: crosshair;
+}
+
 .app__graphTheoryPanel {
   width: 100%;
   height: 100%;

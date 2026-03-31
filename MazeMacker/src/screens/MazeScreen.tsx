@@ -35,7 +35,12 @@ import {
   downloadMazeTransferPayload,
 } from '../data/mazeTransfer.export'
 import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
-import { createDefaultGraphTheoryData } from '../data/graphTheory'
+import {
+  createDefaultGraphTheoryData,
+  setAllGraphTheoryEdgeCosts,
+  setGraphTheoryEdgeCost,
+  type GraphTheoryData,
+} from '../data/graphTheory'
 import mazeScreenText from '../text/mazeScreen.json'
 
 const DEFAULT_GENERATION_INTERVAL_MS = 40
@@ -287,23 +292,22 @@ function MazeScreen() {
   const [mazeTransferText, setMazeTransferText] = useState('')
   const [toast, setToast] = useState<ToastState | null>(null)
   const [editCostInput, setEditCostInput] = useState('1')
+  const [graphTheoryState, setGraphTheoryState] = useState<GraphTheoryData>(() =>
+    createDefaultGraphTheoryData(7),
+  )
   const [dimensionInputs, setDimensionInputs] = useState({
     columns: String(DEFAULT_MAZE_DIMENSIONS.columns),
     rows: String(DEFAULT_MAZE_DIMENSIONS.rows),
   })
   const [seedInput, setSeedInput] = useState(String(DEFAULT_MAZE_SEED))
   const [useSeed, setUseSeed] = useState(false)
-  const graphTheoryData = createDefaultGraphTheoryData(7)
-  const graphVertexCount = graphTheoryData.nodes.length
-  const graphEdgeCount = graphTheoryData.edges.length
+  const graphTheoryData = graphTheoryState
+  const graphVertexCount = graphTheoryState.nodes.length
+  const graphEdgeCount = graphTheoryState.edges.length
   const effectiveDisplayMode: MazeDisplayMode =
     appMode === 'graphTheory' ? 'graph' : displayMode
   const effectiveShowGraphEdgeCosts =
-    appMode === 'graphTheory'
-      ? true
-      : activeTab === 'edit' && editMode === 'cost'
-        ? true
-        : showGraphEdgeCosts
+    activeTab === 'edit' && editMode === 'cost' ? true : showGraphEdgeCosts
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
@@ -686,8 +690,19 @@ function MazeScreen() {
     )
   }
 
+  function handleGraphTheoryEdgeCostSet(edgeIndex: number, nextCost: number) {
+    setGraphTheoryState((currentGraph) =>
+      setGraphTheoryEdgeCost(currentGraph, edgeIndex, nextCost),
+    )
+  }
+
   function handleApplyAllEdgeCosts() {
     const nextCost = normalizeEdgeCost(editCostInput, 1)
+
+    if (appMode === 'graphTheory') {
+      setGraphTheoryState((currentGraph) => setAllGraphTheoryEdgeCosts(currentGraph, nextCost))
+      return
+    }
 
     setIsPlaying(false)
     setGenerationState((currentState) => setAllMazeEdgeCosts(currentState, nextCost))
@@ -950,13 +965,17 @@ function MazeScreen() {
             </header>
             <GraphTheoryCanvas
               graph={graphTheoryData}
-              showEdgeCosts={showGraphEdgeCosts}
+              editable
+              editCostValue={normalizeEdgeCost(editCostInput, 1)}
+              editMode="cost"
+              onEdgeCostSet={handleGraphTheoryEdgeCostSet}
+              showEdgeCosts={effectiveShowGraphEdgeCosts}
             />
           </div>
         ) : appMode === 'graphTheory' ? (
           <GraphTheoryCanvas
             graph={graphTheoryData}
-            showEdgeCosts={showGraphEdgeCosts}
+            showEdgeCosts={effectiveShowGraphEdgeCosts}
           />
         ) : activeTab === 'search' ? (
           <div className="app__searchPanels">
@@ -1111,7 +1130,29 @@ function MazeScreen() {
 
         <section className="app__controls">
           {appMode === 'graphTheory' && activeTab === 'edit' ? (
-            <div className="app__controlsBody" />
+            <div className="app__controlsBody">
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.edit.costLabel}</span>
+                <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_EDGE_COST}
+                    max={MAX_EDGE_COST}
+                    step={1}
+                    value={editCostInput}
+                    onChange={(event) => setEditCostInput(event.target.value)}
+                  />
+                  <button
+                    className="app__button app__button--compact app__button--secondary"
+                    type="button"
+                    onClick={handleApplyAllEdgeCosts}
+                  >
+                    {mazeScreenText.edit.applyAllCosts}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : appMode === 'graphTheory' ? (
             <div className="app__controlsBody">
               <div className="app__field">

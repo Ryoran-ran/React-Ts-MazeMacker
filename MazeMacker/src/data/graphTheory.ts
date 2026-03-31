@@ -169,3 +169,33 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
 
   return { edges, nodes }
 }
+
+export function setGraphTheoryEdgeCost(
+  graph: GraphTheoryData,
+  edgeIndex: number,
+  cost: number,
+): GraphTheoryData {
+  return {
+    ...graph,
+    edges: graph.edges.map((edge, index) =>
+      index === edgeIndex
+        ? { ...edge, cost: Math.max(0, Math.trunc(cost)) }
+        : edge,
+    ),
+  }
+}
+
+export function setAllGraphTheoryEdgeCosts(
+  graph: GraphTheoryData,
+  cost: number,
+): GraphTheoryData {
+  const normalizedCost = Math.max(0, Math.trunc(cost))
+
+  return {
+    ...graph,
+    edges: graph.edges.map((edge) => ({
+      ...edge,
+      cost: normalizedCost,
+    })),
+  }
+}
