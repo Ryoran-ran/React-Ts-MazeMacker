@@ -60,6 +60,8 @@
   },
   "graphTheory": {
     "hint": "現在の迷路をグラフとして表示します。",
+    "editHint": "グラフ理論の編集機能はこの画面に追加します。",
+    "editTitle": "グラフ編集",
     "summaryLabel": "グラフ情報",
     "vertices": "頂点",
     "edges": "辺"

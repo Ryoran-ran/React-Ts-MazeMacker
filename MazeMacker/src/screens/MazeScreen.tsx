@@ -450,6 +450,9 @@ function MazeScreen() {
   function handleAppModeChange(nextMode: AppMode) {
     setIsPlaying(false)
     setIsSearchPlaying(false)
+    if (nextMode === 'graphTheory' && activeTab === 'controls') {
+      setActiveTab('display')
+    }
     setAppMode(nextMode)
   }
 
@@ -896,19 +899,32 @@ function MazeScreen() {
         <div className="app__topbarSide">
           <div className="app__statusArea">
             <div className="app__statusRow" aria-label="Maze status">
-              <span className="app__statusItem">
-                {mazeScreenText.status.algorithm}:{' '}
-                {mazeScreenText.algorithm.options[selectedAlgorithm]}
-              </span>
-              <span className="app__statusItem">
-                {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
-                {generationState.dimensions.rows}
-              </span>
-              <span className="app__statusItem">
-                {mazeScreenText.status.steps}: {generationState.stepCount}
-                {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
-                {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
-              </span>
+              {appMode === 'graphTheory' ? (
+                <>
+                  <span className="app__statusItem">
+                    {mazeScreenText.graphTheory.vertices}: {graphVertexCount}
+                  </span>
+                  <span className="app__statusItem">
+                    {mazeScreenText.graphTheory.edges}: {graphEdgeCount}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="app__statusItem">
+                    {mazeScreenText.status.algorithm}:{' '}
+                    {mazeScreenText.algorithm.options[selectedAlgorithm]}
+                  </span>
+                  <span className="app__statusItem">
+                    {mazeScreenText.status.dimensions}: {generationState.dimensions.columns} x{' '}
+                    {generationState.dimensions.rows}
+                  </span>
+                  <span className="app__statusItem">
+                    {mazeScreenText.status.steps}: {generationState.stepCount}
+                    {isPlaying ? ` / ${mazeScreenText.status.playing}` : ''}
+                    {generationState.isComplete ? ` / ${mazeScreenText.status.completed}` : ''}
+                  </span>
+                </>
+              )}
             </div>
             <label className="app__modeField" aria-label={mazeScreenText.mode.label}>
               <select
@@ -926,7 +942,18 @@ function MazeScreen() {
       </header>
 
       <section className="app__panel">
-        {appMode === 'graphTheory' ? (
+        {appMode === 'graphTheory' && activeTab === 'edit' ? (
+          <div className="app__graphTheoryPanel">
+            <header className="app__graphTheoryPanelHeader">
+              <h2>{mazeScreenText.graphTheory.editTitle}</h2>
+              <p>{mazeScreenText.graphTheory.editHint}</p>
+            </header>
+            <GraphTheoryCanvas
+              graph={graphTheoryData}
+              showEdgeCosts={showGraphEdgeCosts}
+            />
+          </div>
+        ) : appMode === 'graphTheory' ? (
           <GraphTheoryCanvas
             graph={graphTheoryData}
             showEdgeCosts={showGraphEdgeCosts}
@@ -1083,22 +1110,10 @@ function MazeScreen() {
         </div>
 
         <section className="app__controls">
-          {appMode === 'graphTheory' ? (
+          {appMode === 'graphTheory' && activeTab === 'edit' ? (
+            <div className="app__controlsBody" />
+          ) : appMode === 'graphTheory' ? (
             <div className="app__controlsBody">
-              <p className="app__status">{mazeScreenText.graphTheory.hint}</p>
-              <div className="app__field">
-                <span className="app__fieldLabel">
-                  {mazeScreenText.graphTheory.summaryLabel}
-                </span>
-                <div className="app__graphSummary">
-                  <span>
-                    {mazeScreenText.graphTheory.vertices}: {graphVertexCount}
-                  </span>
-                  <span>
-                    {mazeScreenText.graphTheory.edges}: {graphEdgeCount}
-                  </span>
-                </div>
-              </div>
               <div className="app__field">
                 <span className="app__fieldLabel">{mazeScreenText.graphEdgeCosts.label}</span>
                 <div className="app__tabs app__tabs--search" role="tablist" aria-label="Graph edge cost labels">

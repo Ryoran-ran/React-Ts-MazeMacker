@@ -484,6 +484,37 @@
   border-radius: 20px;
 }
 
+.app__graphTheoryPanel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.app__graphTheoryPanelHeader {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.app__graphTheoryPanelHeader h2,
+.app__graphTheoryPanelHeader p {
+  margin: 0;
+}
+
+.app__graphTheoryPanelHeader h2 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.app__graphTheoryPanelHeader p {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
 .maze-canvas__stage {
   display: flex;
   align-items: center;
