@@ -1178,6 +1178,27 @@ function MazeScreen() {
         <section className="app__controls">
           {appMode === 'graphTheory' && activeTab === 'edit' ? (
             <div className="app__controlsBody">
+              <div className="app__field">
+                <span className="app__fieldLabel">{mazeScreenText.graphTheory.vertexCountLabel}</span>
+                <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                  <input
+                    className="app__input"
+                    type="number"
+                    min={MIN_GRAPH_VERTEX_COUNT}
+                    max={MAX_GRAPH_VERTEX_COUNT}
+                    step={1}
+                    value={graphVertexCountInput}
+                    onChange={(event) => setGraphVertexCountInput(event.target.value)}
+                  />
+                  <button
+                    className="app__button app__button--compact app__button--secondary"
+                    type="button"
+                    onClick={handleApplyGraphVertexCount}
+                  >
+                    {mazeScreenText.graphTheory.applyVertexCount}
+                  </button>
+                </div>
+              </div>
               <div className="app__tabs app__tabs--graphEdit" role="tablist" aria-label="Graph edit modes">
                 <button
                   className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
