@@ -63,6 +63,8 @@
     "editHint": "グラフ理論の編集機能はこの画面に追加します。",
     "editTitle": "グラフ編集",
     "summaryLabel": "グラフ情報",
+    "edgeMode": "辺",
+    "edgeConnectHint": "2つの頂点を順にクリックして辺をつなげます。",
     "edgeCostLabel": "辺コスト",
     "nodeCostLabel": "頂点コスト",
     "applyAllEdgeCosts": "辺に一括反映",

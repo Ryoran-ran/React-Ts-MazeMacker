@@ -36,6 +36,7 @@ import {
 } from '../data/mazeTransfer.export'
 import { parseMazeTransferPayload } from '../data/mazeTransfer.import'
 import {
+  addGraphTheoryEdge,
   createDefaultGraphTheoryData,
   setAllGraphTheoryEdgeCosts,
   setAllGraphTheoryNodeCosts,
@@ -723,6 +724,16 @@ function MazeScreen() {
     )
   }
 
+  function handleGraphTheoryEdgeAdd(
+    fromNodeIndex: number,
+    toNodeIndex: number,
+    cost: number,
+  ) {
+    setGraphTheoryState((currentGraph) =>
+      addGraphTheoryEdge(currentGraph, fromNodeIndex, toNodeIndex, cost),
+    )
+  }
+
   function handleApplyAllEdgeCosts() {
     const nextCost = normalizeEdgeCost(editCostInput, 1)
 
@@ -1001,6 +1012,7 @@ function MazeScreen() {
               editEdgeCostValue={normalizeEdgeCost(graphEdgeCostInput, 1)}
               editNodeCostValue={normalizeEdgeCost(graphNodeCostInput, 1)}
               editMode={editMode}
+              onEdgeAdd={handleGraphTheoryEdgeAdd}
               onEdgeCostSet={handleGraphTheoryEdgeCostSet}
               onNodeKindSet={handleGraphTheoryNodeKindSet}
               onNodeCostSet={handleGraphTheoryNodeCostSet}
@@ -1168,6 +1180,13 @@ function MazeScreen() {
             <div className="app__controlsBody">
               <div className="app__tabs app__tabs--graphEdit" role="tablist" aria-label="Graph edit modes">
                 <button
+                  className={`app__tab ${editMode === 'wall' ? 'app__tab--active' : ''}`}
+                  type="button"
+                  onClick={() => setEditMode('wall')}
+                >
+                  {mazeScreenText.graphTheory.edgeMode}
+                </button>
+                <button
                   className={`app__tab ${editMode === 'cost' ? 'app__tab--active' : ''}`}
                   type="button"
                   onClick={() => setEditMode('cost')}
@@ -1189,6 +1208,23 @@ function MazeScreen() {
                   {mazeScreenText.edit.modes.goal}
                 </button>
               </div>
+              {editMode === 'wall' ? (
+                <div className="app__field">
+                  <span className="app__fieldLabel">{mazeScreenText.graphTheory.edgeCostLabel}</span>
+                  <div className="app__fieldHeaderActions app__fieldHeaderActions--spread">
+                    <input
+                      className="app__input"
+                      type="number"
+                      min={MIN_EDGE_COST}
+                      max={MAX_EDGE_COST}
+                      step={1}
+                      value={graphEdgeCostInput}
+                      onChange={(event) => setGraphEdgeCostInput(event.target.value)}
+                    />
+                  </div>
+                  <p className="app__status">{mazeScreenText.graphTheory.edgeConnectHint}</p>
+                </div>
+              ) : null}
               {editMode === 'cost' ? (
                 <div className="app__graphBulkActions">
                   <div className="app__field">

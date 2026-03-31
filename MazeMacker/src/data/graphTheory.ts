@@ -248,3 +248,40 @@ export function setAllGraphTheoryNodeCosts(
     })),
   }
 }
+
+export function addGraphTheoryEdge(
+  graph: GraphTheoryData,
+  fromNodeIndex: number,
+  toNodeIndex: number,
+  cost: number,
+): GraphTheoryData {
+  if (
+    fromNodeIndex === toNodeIndex ||
+    fromNodeIndex < 0 ||
+    toNodeIndex < 0 ||
+    fromNodeIndex >= graph.nodes.length ||
+    toNodeIndex >= graph.nodes.length
+  ) {
+    return graph
+  }
+
+  const from = Math.min(fromNodeIndex, toNodeIndex)
+  const to = Math.max(fromNodeIndex, toNodeIndex)
+  const hasSameEdge = graph.edges.some((edge) => edge.from === from && edge.to === to)
+
+  if (hasSameEdge) {
+    return graph
+  }
+
+  return {
+    ...graph,
+    edges: [
+      ...graph.edges,
+      {
+        cost: Math.max(0, Math.trunc(cost)),
+        from,
+        to,
+      },
+    ],
+  }
+}

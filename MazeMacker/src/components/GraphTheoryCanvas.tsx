@@ -12,6 +12,7 @@ type GraphTheoryCanvasProps = {
   editEdgeCostValue?: number
   editNodeCostValue?: number
   editMode?: 'cost' | 'goal' | 'start' | 'wall'
+  onEdgeAdd?: (fromNodeIndex: number, toNodeIndex: number, cost: number) => void
   onEdgeCostSet?: (edgeIndex: number, cost: number) => void
   onNodeKindSet?: (nodeIndex: number, kind: 'goal' | 'start') => void
   onNodeCostSet?: (nodeIndex: number, cost: number) => void
@@ -24,6 +25,7 @@ function GraphTheoryCanvas({
   editEdgeCostValue = 1,
   editNodeCostValue = 1,
   editMode = 'wall',
+  onEdgeAdd,
   onEdgeCostSet,
   onNodeKindSet,
   onNodeCostSet,
@@ -33,6 +35,7 @@ function GraphTheoryCanvas({
   const [containerSize, setContainerSize] = useState({ height: 0, width: 0 })
   const [hoverEdgeIndex, setHoverEdgeIndex] = useState<number | null>(null)
   const [hoverNodeIndex, setHoverNodeIndex] = useState<number | null>(null)
+  const [pendingEdgeStartNodeIndex, setPendingEdgeStartNodeIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -50,6 +53,10 @@ function GraphTheoryCanvas({
       observer.disconnect()
     }
   }, [])
+
+  useEffect(() => {
+    setPendingEdgeStartNodeIndex(null)
+  }, [editMode, graph])
 
   const width = Math.max(containerSize.width, 320)
   const height = Math.max(containerSize.height, 320)
@@ -144,6 +151,20 @@ function GraphTheoryCanvas({
           return
         }
 
+        if (nodeIndex !== null && editMode === 'wall') {
+          if (pendingEdgeStartNodeIndex === null) {
+            setPendingEdgeStartNodeIndex(nodeIndex)
+            return
+          }
+
+          if (pendingEdgeStartNodeIndex !== nodeIndex) {
+            onEdgeAdd?.(pendingEdgeStartNodeIndex, nodeIndex, editEdgeCostValue)
+          }
+
+          setPendingEdgeStartNodeIndex(null)
+          return
+        }
+
         if (nodeIndex !== null && editMode === 'cost') {
           onNodeCostSet?.(nodeIndex, editNodeCostValue)
           return
@@ -168,7 +189,10 @@ function GraphTheoryCanvas({
       onMouseMove={(event) => {
         if (
           !editable ||
-          (editMode !== 'cost' && editMode !== 'start' && editMode !== 'goal') ||
+          (editMode !== 'cost' &&
+            editMode !== 'start' &&
+            editMode !== 'goal' &&
+            editMode !== 'wall') ||
           !containerRef.current
         ) {
           setHoverEdgeIndex(null)
@@ -244,12 +268,15 @@ function GraphTheoryCanvas({
         {graph.nodes.map((node) => {
           const projected = project(node.position)
           const isHovered = hoverNodeIndex === node.id
+          const isPendingEdgeStart = pendingEdgeStartNodeIndex === node.id
           const hoverFill =
             editMode === 'start'
               ? 'rgba(37, 99, 235, 0.16)'
               : editMode === 'goal'
                 ? 'rgba(220, 38, 38, 0.16)'
-                : 'rgba(37, 99, 235, 0.10)'
+                : editMode === 'wall'
+                  ? 'rgba(37, 99, 235, 0.16)'
+                  : 'rgba(37, 99, 235, 0.10)'
           const fill =
             node.kind === 'start'
               ? '#dbeafe'
@@ -267,13 +294,21 @@ function GraphTheoryCanvas({
                   fill={hoverFill}
                 />
               ) : null}
+              {isPendingEdgeStart ? (
+                <circle
+                  cx={projected.x}
+                  cy={projected.y}
+                  r={nodeRadius * 1.34}
+                  fill="rgba(37, 99, 235, 0.18)"
+                />
+              ) : null}
               <circle
                 cx={projected.x}
                 cy={projected.y}
                 r={nodeRadius}
                 fill={fill}
-                stroke={isHovered ? '#2563eb' : '#e5e7eb'}
-                strokeWidth={isHovered ? 4 : 2}
+                stroke={isHovered || isPendingEdgeStart ? '#2563eb' : '#e5e7eb'}
+                strokeWidth={isHovered || isPendingEdgeStart ? 4 : 2}
               />
               <text
                 x={projected.x}
