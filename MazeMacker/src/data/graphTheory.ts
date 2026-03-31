@@ -270,7 +270,10 @@ export function addGraphTheoryEdge(
   const hasSameEdge = graph.edges.some((edge) => edge.from === from && edge.to === to)
 
   if (hasSameEdge) {
-    return graph
+    return {
+      ...graph,
+      edges: graph.edges.filter((edge) => !(edge.from === from && edge.to === to)),
+    }
   }
 
   return {
