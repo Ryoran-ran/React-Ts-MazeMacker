@@ -72,6 +72,7 @@ type MazeCanvasProps = {
   editMode?: MazeEditMode
   editCostValue?: number
   onCellSelect?: (position: CellPosition) => void
+  onCellActivate?: (position: CellPosition) => void
   onEdgeCostSet?: (
     position: CellPosition,
     direction: MazeWallDirection,
@@ -103,6 +104,7 @@ function MazeCanvas({
   editMode = 'wall',
   editCostValue = 1,
   onCellSelect,
+  onCellActivate,
   onEdgeCostSet,
   onWallToggle,
 }: MazeCanvasProps) {
@@ -329,10 +331,6 @@ function MazeCanvas({
       }
 
       p.mousePressed = () => {
-        if (!editable) {
-          return
-        }
-
         const clickX = p.mouseX
         const clickY = p.mouseY
 
@@ -342,6 +340,11 @@ function MazeCanvas({
 
         const cellX = Math.min(columnCount - 1, Math.floor(clickX / responsiveCellSize))
         const cellY = Math.min(rowCount - 1, Math.floor(clickY / responsiveCellSize))
+
+        if (!editable) {
+          onCellActivate?.({ x: cellX, y: cellY })
+          return
+        }
 
         if (editMode === 'start' || editMode === 'goal') {
           onCellSelect?.({ x: cellX, y: cellY })
@@ -852,6 +855,7 @@ function MazeCanvas({
     editCostValue,
     editable,
     maze,
+    onCellActivate,
     onCellSelect,
     onEdgeCostSet,
     onWallToggle,
