@@ -60,6 +60,141 @@ function createDefaultGraphPositions(nodeCount: number) {
   })
 }
 
+function createDefaultGraphEdges(nodeCount: number): GraphTheoryEdge[] {
+  const edges: GraphTheoryEdge[] = []
+
+  for (let index = 0; index < nodeCount - 1; index += 1) {
+    edges.push({
+      cost: ((index + 1) % 5) + 1,
+      direction: 'undirected',
+      from: index,
+      to: index + 1,
+    })
+  }
+
+  for (let index = 0; index < nodeCount - 2; index += 2) {
+    edges.push({
+      cost: ((index + 3) % 5) + 1,
+      direction: 'undirected',
+      from: index,
+      to: index + 2,
+    })
+  }
+
+  return edges
+}
+
+function createLaidOutDefaultGraphPositions(nodeCount: number, edges: GraphTheoryEdge[]) {
+  const positions = createDefaultGraphPositions(nodeCount).map((position) => ({ ...position }))
+  const centerX = GRAPH_THEORY_WORLD_WIDTH / 2
+  const centerY = GRAPH_THEORY_WORLD_HEIGHT / 2
+  const margin = 6
+  const repulsionStrength = 180
+  const springStrength = 0.018
+  const preferredEdgeLength = Math.min(24, 12 + nodeCount * 1.35)
+
+  for (let iteration = 0; iteration < 140; iteration += 1) {
+    const forces = positions.map(() => ({ x: 0, y: 0 }))
+
+    for (let fromIndex = 0; fromIndex < positions.length; fromIndex += 1) {
+      for (let toIndex = fromIndex + 1; toIndex < positions.length; toIndex += 1) {
+        const dx = positions[toIndex].x - positions[fromIndex].x
+        const dy = positions[toIndex].y - positions[fromIndex].y
+        const distanceSquared = Math.max(1, dx * dx + dy * dy)
+        const distance = Math.sqrt(distanceSquared)
+        const magnitude = repulsionStrength / distanceSquared
+        const ux = dx / distance
+        const uy = dy / distance
+
+        forces[fromIndex].x -= ux * magnitude
+        forces[fromIndex].y -= uy * magnitude
+        forces[toIndex].x += ux * magnitude
+        forces[toIndex].y += uy * magnitude
+      }
+    }
+
+    for (const edge of edges) {
+      const from = positions[edge.from]
+      const to = positions[edge.to]
+      const dx = to.x - from.x
+      const dy = to.y - from.y
+      const distance = Math.max(1, Math.hypot(dx, dy))
+      const magnitude = (distance - preferredEdgeLength) * springStrength
+      const ux = dx / distance
+      const uy = dy / distance
+
+      forces[edge.from].x += ux * magnitude
+      forces[edge.from].y += uy * magnitude
+      forces[edge.to].x -= ux * magnitude
+      forces[edge.to].y -= uy * magnitude
+    }
+
+    for (let index = 0; index < positions.length; index += 1) {
+      const centerDx = centerX - positions[index].x
+      const centerDy = centerY - positions[index].y
+      forces[index].x += centerDx * 0.0025
+      forces[index].y += centerDy * 0.0025
+
+      positions[index].x = Math.max(
+        margin,
+        Math.min(GRAPH_THEORY_WORLD_WIDTH - margin, positions[index].x + forces[index].x),
+      )
+      positions[index].y = Math.max(
+        margin,
+        Math.min(GRAPH_THEORY_WORLD_HEIGHT - margin, positions[index].y + forces[index].y),
+      )
+    }
+  }
+
+  return positions
+}
+
+function findAvailableGraphNodePosition(
+  occupiedPositions: CellPosition[],
+  preferredPosition: CellPosition,
+  minDistance = 9,
+) {
+  const margin = 6
+  const candidates: CellPosition[] = [{ ...preferredPosition }]
+
+  for (let radius = 4; radius <= 28; radius += 4) {
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+      candidates.push({
+        x: preferredPosition.x + Math.cos(angle) * radius,
+        y: preferredPosition.y + Math.sin(angle) * radius,
+      })
+    }
+  }
+
+  let bestCandidate = {
+    x: Math.max(margin, Math.min(GRAPH_THEORY_WORLD_WIDTH - margin, preferredPosition.x)),
+    y: Math.max(margin, Math.min(GRAPH_THEORY_WORLD_HEIGHT - margin, preferredPosition.y)),
+  }
+  let bestNearestDistance = -1
+
+  for (const candidate of candidates) {
+    const clamped = {
+      x: Math.max(margin, Math.min(GRAPH_THEORY_WORLD_WIDTH - margin, candidate.x)),
+      y: Math.max(margin, Math.min(GRAPH_THEORY_WORLD_HEIGHT - margin, candidate.y)),
+    }
+    const nearestDistance = occupiedPositions.reduce((nearest, occupied) => {
+      const distance = Math.hypot(clamped.x - occupied.x, clamped.y - occupied.y)
+      return Math.min(nearest, distance)
+    }, Number.POSITIVE_INFINITY)
+
+    if (nearestDistance >= minDistance) {
+      return clamped
+    }
+
+    if (nearestDistance > bestNearestDistance) {
+      bestNearestDistance = nearestDistance
+      bestCandidate = clamped
+    }
+  }
+
+  return bestCandidate
+}
+
 function getOpenDirections(maze: MazeData, position: CellPosition) {
   const cell = maze[position.y][position.x]
 
@@ -168,7 +303,8 @@ export function buildGraphTheoryData(maze: MazeData): GraphTheoryData {
 
 export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
   const safeNodeCount = Math.max(2, Math.min(nodeCount, 24))
-  const positions = createDefaultGraphPositions(safeNodeCount)
+  const edges = createDefaultGraphEdges(safeNodeCount)
+  const positions = createLaidOutDefaultGraphPositions(safeNodeCount, edges)
   const nodes: GraphTheoryNode[] = Array.from({ length: safeNodeCount }, (_, index) => ({
     cost: (index % 9) + 1,
     id: index,
@@ -176,26 +312,6 @@ export function createDefaultGraphTheoryData(nodeCount = 7): GraphTheoryData {
     label: String(index + 1),
     position: positions[index],
   }))
-
-  const edges: GraphTheoryEdge[] = []
-
-  for (let index = 0; index < safeNodeCount - 1; index += 1) {
-    edges.push({
-      cost: ((index + 1) % 5) + 1,
-      direction: 'undirected',
-      from: index,
-      to: index + 1,
-    })
-  }
-
-  for (let index = 0; index < safeNodeCount - 2; index += 2) {
-    edges.push({
-      cost: ((index + 3) % 5) + 1,
-      direction: 'undirected',
-      from: index,
-      to: index + 2,
-    })
-  }
 
   return { edges, nodes }
 }
@@ -248,11 +364,18 @@ export function resizeGraphTheoryData(
     ...node,
     id: index,
   }))
-  const appendedNodes = defaultGraph.nodes.slice(graph.nodes.length).map((node, offset) => ({
-    ...node,
-    id: graph.nodes.length + offset,
-    kind: undefined,
-  }))
+  const occupiedPositions = existingNodes.map((node) => node.position)
+  const appendedNodes = defaultGraph.nodes.slice(graph.nodes.length).map((node, offset) => {
+    const position = findAvailableGraphNodePosition(occupiedPositions, node.position)
+    occupiedPositions.push(position)
+
+    return {
+      ...node,
+      id: graph.nodes.length + offset,
+      kind: undefined,
+      position,
+    }
+  })
 
   return {
     edges: graph.edges,
