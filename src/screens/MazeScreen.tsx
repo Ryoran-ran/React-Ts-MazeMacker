@@ -474,6 +474,14 @@ function MazeScreen() {
       nodeIds: searchState.pathNodeIds,
     }
   }, [activeTab, appMode, graphTheoryData, showGraphTheoryEditGoalPath])
+  const generationStepRef = useRef(handleGenerationStep)
+  const searchStepRef = useRef(handleMazeSearchStep)
+
+  useEffect(() => {
+    generationStepRef.current = handleGenerationStep
+    searchStepRef.current =
+      appMode === 'graphTheory' ? handleGraphSearchStep : handleMazeSearchStep
+  })
 
   useEffect(() => {
     if (!isPlaying || generationState.isComplete) {
@@ -481,7 +489,7 @@ function MazeScreen() {
     }
 
     const timerId = window.setInterval(() => {
-      handleGenerationStep()
+      generationStepRef.current()
     }, generationIntervalMs)
 
     return () => {
@@ -490,38 +498,18 @@ function MazeScreen() {
   }, [generationIntervalMs, generationState.isComplete, isPlaying])
 
   useEffect(() => {
-    if (
-      !isSearchPlaying ||
-      (appMode === 'graphTheory'
-        ? selectedGraphSearchAlgorithms.every(
-            (algorithm) => graphSearchStates[algorithm].isComplete,
-          )
-        : selectedSearchAlgorithms.every((algorithm) => searchStates[algorithm].isComplete))
-    ) {
+    if (!isSearchPlaying) {
       return
     }
 
     const timerId = window.setInterval(() => {
-      if (appMode === 'graphTheory') {
-        handleGraphSearchStep()
-        return
-      }
-
-      handleMazeSearchStep()
+      searchStepRef.current()
     }, searchIntervalMs)
 
     return () => {
       window.clearInterval(timerId)
     }
-  }, [
-    appMode,
-    graphSearchStates,
-    isSearchPlaying,
-    searchIntervalMs,
-    searchStates,
-    selectedGraphSearchAlgorithms,
-    selectedSearchAlgorithms,
-  ])
+  }, [isSearchPlaying, searchIntervalMs])
 
   useEffect(() => {
     if (generationState.isComplete) {
@@ -661,6 +649,14 @@ function MazeScreen() {
 
     if (nextTab === 'edit') {
       setEditMode(appMode === 'graphTheory' ? 'cost' : 'wall')
+    }
+
+    if (
+      nextTab === 'search' &&
+      appMode === 'maze' &&
+      searchStates.astar.maze !== generationState.maze
+    ) {
+      handleMazeSearchReset(generationState.maze)
     }
 
     setActiveTab(nextTab)

@@ -125,6 +125,58 @@ function MazeCanvas({
 
   const rowCount = maze.length
   const columnCount = maze[0]?.length ?? 0
+  const renderStateRef = useRef({
+    backgroundColor,
+    currentCell,
+    currentCellSpan,
+    currentFacingDirection,
+    displayMode,
+    editCostValue,
+    editable,
+    editMode,
+    maze,
+    onCellActivate,
+    onCellSelect,
+    onEdgeCostSet,
+    onWallToggle,
+    openSet,
+    path,
+    playHandGuideMode,
+    playWallVisibilityMode,
+    revealedWalls,
+    showGraphEdgeCosts,
+    showVisitedWalls,
+    visited,
+    wallColor,
+  })
+
+  useEffect(() => {
+    renderStateRef.current = {
+      backgroundColor,
+      currentCell,
+      currentCellSpan,
+      currentFacingDirection,
+      displayMode,
+      editCostValue,
+      editable,
+      editMode,
+      maze,
+      onCellActivate,
+      onCellSelect,
+      onEdgeCostSet,
+      onWallToggle,
+      openSet,
+      path,
+      playHandGuideMode,
+      playWallVisibilityMode,
+      revealedWalls,
+      showGraphEdgeCosts,
+      showVisitedWalls,
+      visited,
+      wallColor,
+    }
+    instanceRef.current?.redraw()
+  })
 
   useEffect(() => {
     return () => {
@@ -162,7 +214,7 @@ function MazeCanvas({
       throw new Error('maze must contain at least one cell')
     }
 
-    if (maze.some((row) => row.length !== columnCount)) {
+    if (renderStateRef.current.maze.some((row) => row.length !== columnCount)) {
       throw new Error('maze rows must all have the same length')
     }
 
@@ -175,8 +227,10 @@ function MazeCanvas({
       return
     }
 
+    const stageElement = stageRef.current
+
     instanceRef.current?.remove()
-    stageRef.current.replaceChildren()
+    stageElement.replaceChildren()
 
     const sketch = (p: p5) => {
       function getHandDirection(
@@ -253,6 +307,8 @@ function MazeCanvas({
       }
 
       function resolveEditTarget(pointerX: number, pointerY: number) {
+        const { editable, editMode } = renderStateRef.current
+
         if (!editable) {
           return null
         }
@@ -313,24 +369,35 @@ function MazeCanvas({
           return false
         }
 
+        const { maze } = renderStateRef.current
+
         return hasNeighborForDirection(x, y, direction) && !maze[y][x].walls[direction]
       }
 
       p.mouseMoved = () => {
-        if (editable) {
+        if (renderStateRef.current.editable) {
           hoverTargetRef.current = resolveEditTarget(p.mouseX, p.mouseY)
           p.redraw()
         }
       }
 
       p.mouseReleased = () => {
-        if (editable) {
+        if (renderStateRef.current.editable) {
           hoverTargetRef.current = resolveEditTarget(p.mouseX, p.mouseY)
           p.redraw()
         }
       }
 
       p.mousePressed = () => {
+        const {
+          editCostValue,
+          editable,
+          editMode,
+          onCellActivate,
+          onCellSelect,
+          onEdgeCostSet,
+          onWallToggle,
+        } = renderStateRef.current
         const clickX = p.mouseX
         const clickY = p.mouseY
 
@@ -394,6 +461,25 @@ function MazeCanvas({
       }
 
       p.draw = () => {
+        const {
+          backgroundColor,
+          currentCell,
+          currentCellSpan,
+          currentFacingDirection,
+          displayMode,
+          editMode,
+          maze,
+          openSet,
+          path,
+          playHandGuideMode,
+          playWallVisibilityMode,
+          revealedWalls,
+          showGraphEdgeCosts,
+          showVisitedWalls,
+          visited,
+          wallColor,
+        } = renderStateRef.current
+
         p.background(backgroundColor)
         const hoveredEditTarget = hoverTargetRef.current
         const isGraphMode = displayMode === 'graph'
@@ -832,44 +918,17 @@ function MazeCanvas({
       }
     }
 
-    instanceRef.current = new p5(sketch, stageRef.current)
+    const instance = new p5(sketch, stageElement)
+    instanceRef.current = instance
 
     return () => {
-      instanceRef.current?.remove()
-      instanceRef.current = null
-      stageRef.current?.replaceChildren()
+      instance.remove()
+      if (instanceRef.current === instance) {
+        instanceRef.current = null
+      }
+      stageElement.replaceChildren()
     }
-  }, [
-    backgroundColor,
-    cellSize,
-    columnCount,
-    containerSize.height,
-    containerSize.width,
-    currentCell,
-    currentCellSpan.columns,
-    currentCellSpan.rows,
-    currentFacingDirection,
-    celebrateGoal,
-    displayMode,
-    editMode,
-    editCostValue,
-    editable,
-    maze,
-    onCellActivate,
-    onCellSelect,
-    onEdgeCostSet,
-    onWallToggle,
-    openSet,
-    path,
-    playWallVisibilityMode,
-    playHandGuideMode,
-    revealedWalls,
-    rowCount,
-    showGraphEdgeCosts,
-    showVisitedWalls,
-    visited,
-    wallColor,
-  ])
+  }, [cellSize, columnCount, containerSize.height, containerSize.width, rowCount])
 
   useEffect(() => {
     if (!bumpState) {
