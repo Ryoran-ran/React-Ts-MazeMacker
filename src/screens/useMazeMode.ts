@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   completeMazeGeneration,
   createMazeGenerationState,
@@ -92,6 +92,10 @@ export function useMazeMode(defaultDimensions: MazeDimensions, defaultAlgorithm:
   const [searchStates, setSearchStates] = useState<MazeSearchStateMap>(() =>
     createSearchStateMap(createMazeGenerationState(defaultDimensions, defaultAlgorithm, null).maze),
   )
+
+  useEffect(() => {
+    setSearchStates(createSearchStateMap(generationState.maze))
+  }, [generationState.maze])
 
   function handleGenerationStep() {
     setGenerationState((currentState) => stepMazeGeneration(currentState))
